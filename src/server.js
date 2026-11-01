@@ -17,29 +17,200 @@
  ********************************************************************************/
 
 export * from "./modules/file/index.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
 export { cloudProviders } from "./modules/cloudProviders.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
 export { getClientInfo } from "./modules/getClientInfo.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
 export { getRelativePath } from "./modules/getRelativePath.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
 export { getClockOffset } from "./modules/getClockOffset.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
 export { ObjectId } from "./modules/ObjectId.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
 export { uuid } from "./modules/uuid.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
+/**
+ *
+ * @public
+ * @environment server
+ */
 export { ulid, ulidDecode } from "./modules/ulid.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
 export { checkValue } from "./modules/checkValue.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
 export { isValidDate } from "./modules/isValidDate.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
 export { objectToSearchParams } from "./modules/objectToSearchParams.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
 export { searchParamsToObject } from "./modules/searchParamsToObject.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
 export { dotNotationToObject } from "./modules/dotNotationToObject.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
 export { objectToDotNotation } from "./modules/objectToDotNotation.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
 export { getValueFromObject } from "./modules/getValueFromObject.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
 export { resolveProperty } from "./modules/resolveProperty.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
 export { createUpdate } from "./modules/createUpdate.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
 export { parseTextToHtml } from "./modules/parseTextToHtml.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
 export { escapeHtml } from "./modules/escapeHtml.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
+/**
+ *
+ * @public
+ * @environment server
+ */
+/**
+ *
+ * @public
+ * @environment server
+ */
+/**
+ *
+ * @public
+ * @environment server
+ */
+/**
+ *
+ * @public
+ * @environment server
+ */
 export { queryData, searchData, sortData, isEqualArray, isEqualObject } from "./modules/dataQuery.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
+/**
+ *
+ * @public
+ * @environment server
+ */
 export { astSync, astAsync } from "./modules/ast/index.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
+export { renderValue } from "./modules/renderValue.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
+/**
+ *
+ * @public
+ * @environment server
+ */
 export { processOperators, processOperatorsAsync } from "./modules/ast/operators.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
 export { HTMLScanner } from "./modules/html-scanner.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
+/**
+ *
+ * @public
+ * @environment server
+ */
+/**
+ *
+ * @public
+ * @environment server
+ */
 export { getAttributes, getAttributeNames, setAttributeNames } from "./modules/attributes.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
 export { security } from './modules/security.js';
 
 import { cloudProviders } from "./modules/cloudProviders.js";
@@ -62,6 +233,7 @@ import { parseTextToHtml } from "./modules/parseTextToHtml.js";
 import { escapeHtml } from "./modules/escapeHtml.js";
 import { queryData, searchData, sortData, isEqualArray, isEqualObject } from "./modules/dataQuery.js";
 import { astSync, astAsync } from "./modules/ast/index.js";
+import { renderValue } from "./modules/renderValue.js";
 import { processOperators, processOperatorsAsync } from "./modules/ast/operators.js";
 import { HTMLScanner } from "./modules/html-scanner.js";
 import { getAttributes, getAttributeNames, setAttributeNames } from "./modules/attributes.js";
@@ -100,6 +272,7 @@ const utils = {
     createUpdate,
     astSync,
     astAsync,
+    renderValue,
     processOperators,
     processOperatorsAsync,
     HTMLScanner,
@@ -111,4 +284,208 @@ const utils = {
 
 export default utils;
 
+/**
+ *
+ * @public
+ * @environment server
+ */
+/**
+ *
+ * @public
+ * @environment server
+ */
+/**
+ *
+ * @public
+ * @environment server
+ */
+/**
+ *
+ * @public
+ * @environment server
+ */
+/**
+ *
+ * @public
+ * @environment server
+ */
+/**
+ *
+ * @public
+ * @environment server
+ */
+/**
+ *
+ * @public
+ * @environment server
+ */
+/**
+ *
+ * @public
+ * @environment server
+ */
+/**
+ *
+ * @public
+ * @environment server
+ */
+/**
+ *
+ * @public
+ * @environment server
+ */
 export { getValueAttribute, transformValue, convertValue, caseHandler, regex, encodeValue, decodeValue, parseJson, toBoolean, toArray } from "./modules/valueHandler.js";
+
+/**
+ *
+ * @name contentTypes
+ * @kind member
+ * @public
+ * @environment server
+ */
+
+/**
+ * Restores text, Uint8Array bytes, or an ArrayBuffer for HTTP responses, file writes, and binary storage; Blob/File inputs return a Promise.
+ *
+ * @name decodeContent
+ * @kind member
+ * @public
+ * @signature decodeContent({ value, contentType?, pathname?, encoding?, format?, charset?, fatal? })
+ * @environment server
+ */
+
+/**
+ * Prepares UTF-8 text or encoded binary for JSON transport and storage; Blob/File inputs return a Promise.
+ *
+ * @name encodeContent
+ * @kind member
+ * @public
+ * @signature encodeContent({ value, contentType?, pathname?, encoding?, format?, charset?, fatal? })
+ * @environment server
+ */
+
+/**
+ * Resolves a MIME type from explicit metadata, a data URL, a Blob/File, an extension, or a pathname.
+ *
+ * @name getContentType
+ * @kind member
+ * @public
+ * @signature getContentType({ contentType?, value?, extension?, pathname?, fallback? })
+ * @environment server
+ */
+
+/**
+ * Returns the preferred filename extension for a MIME type, or a configurable fallback.
+ *
+ * @name getExtension
+ * @kind member
+ * @public
+ * @signature getExtension({ contentType, fallback? })
+ * @environment server
+ */
+
+/**
+ * Returns all known extensions for a MIME type, preferred first; unknown types return an empty array.
+ *
+ * @name getExtensions
+ * @kind member
+ * @public
+ * @signature getExtensions({ contentType })
+ * @environment server
+ */
+
+/**
+ * Classifies a MIME type using registry flags and textual MIME families.
+ *
+ * @name isTextContentType
+ * @kind member
+ * @public
+ * @signature isTextContentType(contentType)
+ * @environment server
+ */
+
+/**
+ *
+ * @name mimeTypes
+ * @kind member
+ * @public
+ * @environment server
+ */
+
+/**
+ *
+ * @name valueHandlers
+ * @kind member
+ * @public
+ * @environment server
+ */
+
+/**
+ *
+ * @name $encodeContent
+ * @kind member
+ * @public
+ * @environment server
+ */
+
+/**
+ *
+ * @name $decodeContent
+ * @kind member
+ * @public
+ * @environment server
+ */
+
+/**
+ *
+ * @name $getContentType
+ * @kind member
+ * @public
+ * @environment server
+ */
+
+/**
+ *
+ * @name $getExtension
+ * @kind member
+ * @public
+ * @environment server
+ */
+
+/**
+ *
+ * @name $getExtensions
+ * @kind member
+ * @public
+ * @environment server
+ */
+
+/**
+ *
+ * @name $isTextContentType
+ * @kind member
+ * @public
+ * @environment server
+ */
+
+/**
+ * A simple utils component in vanilla javascript. Easily configured using HTML5 attributes and/or JavaScript API.
+ *
+ * @module utils
+ * @environment server
+ */
+
+/**
+ * Declarative selectors recognized by this module.
+ *
+ * @name declarative-selectors
+ * @kind member
+ * @selectors
+ * @environment server
+ * @example
+ * ```json
+ * [
+ *   "${selector}"
+ * ]
+ * ```
+ */

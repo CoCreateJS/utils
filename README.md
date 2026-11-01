@@ -59,6 +59,36 @@ const { uid, ObjectId } = require("@cocreate/utils");
 const { getValueFromObject } = require("@cocreate/utils/getValueFromObject");
 ```
 
+## Rendering values in strings
+
+`renderValue` resolves CoCreate double-curly values and AST expressions. It can
+run without a DOM node when the expression reads from the supplied data. It
+resolves nested values from the innermost placeholder outward, while callers
+with their own nested scopes can pass a custom `resolveValue` callback.
+
+```js
+import { renderValue } from "@cocreate/utils";
+
+const html = await renderValue(
+	undefined,
+	{
+		data: { ready: "<ready>" },
+		object: { status: "ready" },
+		module: { name: "utils" }
+	},
+	"<p>{{data.{{object.status}}}} {{$data.module.name}}</p>",
+	undefined,
+	undefined,
+	undefined,
+	undefined,
+	{ escapeOutput: true }
+);
+```
+
+The optional `escapeOutput` option escapes resolved values for HTML string
+output. DOM renderers can omit it because the DOM handles text and attribute
+escaping when values are assigned.
+
 ## Querying and Sorting
 
 CoCreate exposes one data-object API across MongoDB, IndexedDB, MySQL, and
