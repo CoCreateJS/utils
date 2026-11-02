@@ -22,14 +22,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://gitlab.com/cocreatejs/CoCreate-utils.git"
+    "url": "git+https://github.com/cocreatejs/CoCreate-utils.git"
   },
   "author": "CoCreate LLC",
   "license": "AGPL-3.0",
   "bugs": {
-    "url": "https://github.com/CoCreate-app/CoCreate-utils/issues"
+    "url": "https://github.com/CoCreateJS/CoCreate-utils/issues"
   },
-  "homepage": "https://cocreate.app/docs/utils",
+  "homepage": "https://CoCreateJS.com/docs/utils",
   "funding": {
     "type": "GitHub Sponsors ❤",
     "url": "https://github.com/sponsors/CoCreate-app"
@@ -45,8 +45,11 @@
       "default": "./src/browser.js"
     },
     "./selection": "./src/modules/selection.js",
+    "./queryElements": "./src/modules/queryElements.js",
+    "./iframe": "./src/modules/iframe.js",
     "./browser": "./src/browser.js",
-    "./server": "./src/server.js"
+    "./server": "./src/server.js",
+    "./file": "./src/modules/file/index.js"
   },
   "sideEffects": false,
   "devDependencies": {

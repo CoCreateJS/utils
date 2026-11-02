@@ -696,7 +696,10 @@ function resolveOperator(element, operator, args, parent, params, objectRegistry
         args = processOperators(element, args, [], operator, params, objectRegistry);
     }
 
-    let targetElements = element ? [element] : [];
+    // The bare `$()` evaluator only needs its AST registry. Give it a neutral
+    // receiver when there is no DOM node so server and string renderers can
+    // evaluate the same expressions without changing DOM-bound operators.
+    let targetElements = element ? [element] : operator === "$" ? [{}] : [];
     if (args && typeof args === "string") {
         const objMatch = args.match(/^__OBJ_(\d+)__$/);
         if (objMatch && objectRegistry.has(args)) {

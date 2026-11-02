@@ -1,28 +1,28 @@
 # CoCreate-utils
 
-A simple utils component in vanilla javascript. Easily configured using HTML5 attributes and/or JavaScript API. Take it for a spin in our [playground!](https://cocreate.app/docs/utils)
+A simple utils component in vanilla javascript. Easily configured using HTML5 attributes and/or JavaScript API. Take it for a spin in our [playground!](https://CoCreateJS.com/docs/utils)
 
-![minified](https://img.badgesize.io/https://cdn.cocreate.app/utils/latest/CoCreate-utils.min.js?style=flat-square&label=minified&color=orange)
-![gzip](https://img.badgesize.io/https://cdn.cocreate.app/utils/latest/CoCreate-utils.min.js?compression=gzip&style=flat-square&label=gzip&color=yellow)
-![brotli](https://img.badgesize.io/https://cdn.cocreate.app/utils/latest/CoCreate-utils.min.js?compression=brotli&style=flat-square&label=brotli)
+![minified](https://img.badgesize.io/https://cdn.CoCreateJS.com/utils/latest/CoCreate-utils.min.js?style=flat-square&label=minified&color=orange)
+![gzip](https://img.badgesize.io/https://cdn.CoCreateJS.com/utils/latest/CoCreate-utils.min.js?compression=gzip&style=flat-square&label=gzip&color=yellow)
+![brotli](https://img.badgesize.io/https://cdn.CoCreateJS.com/utils/latest/CoCreate-utils.min.js?compression=brotli&style=flat-square&label=brotli)
 ![GitHub latest release](https://img.shields.io/github/v/release/CoCreate-app/CoCreate-utils?style=flat-square)
 ![License](https://img.shields.io/github/license/CoCreate-app/CoCreate-utils?style=flat-square)
 ![Hiring](https://img.shields.io/static/v1?style=flat-square&label=&message=Hiring&color=blueviolet)
 
-![CoCreate-utils](https://cdn.cocreate.app/docs/CoCreate-utils.gif)
+![CoCreate-utils](https://cdn.CoCreateJS.com/docs/CoCreate-utils.gif)
 
-## [Docs & Demo](https://cocreate.app/docs/utils)
+## [Docs & Demo](https://CoCreateJS.com/docs/utils)
 
-For a complete guide and working demo refer to the [doumentation](https://cocreate.app/docs/utils)
+For a complete guide and working demo refer to the [doumentation](https://CoCreateJS.com/docs/utils)
 
 ## CDN
 
 ```html
-<script src="https://cdn.cocreate.app/utils/latest/CoCreate-utils.min.js"></script>
+<script src="https://cdn.CoCreateJS.com/utils/latest/CoCreate-utils.min.js"></script>
 ```
 
 ```html
-<script src="https://cdn.cocreate.app/utils/latest/CoCreate-utils.min.css"></script>
+<script src="https://cdn.CoCreateJS.com/utils/latest/CoCreate-utils.min.css"></script>
 ```
 
 ## NPM
@@ -58,6 +58,36 @@ import { queryElements } from "@cocreate/utils/queryElements";
 const { uid, ObjectId } = require("@cocreate/utils");
 const { getValueFromObject } = require("@cocreate/utils/getValueFromObject");
 ```
+
+## Rendering values in strings
+
+`renderValue` resolves CoCreate double-curly values and AST expressions. It can
+run without a DOM node when the expression reads from the supplied data. It
+resolves nested values from the innermost placeholder outward, while callers
+with their own nested scopes can pass a custom `resolveValue` callback.
+
+```js
+import { renderValue } from "@cocreate/utils";
+
+const html = await renderValue(
+	undefined,
+	{
+		data: { ready: "<ready>" },
+		object: { status: "ready" },
+		module: { name: "utils" }
+	},
+	"<p>{{data.{{object.status}}}} {{$data.module.name}}</p>",
+	undefined,
+	undefined,
+	undefined,
+	undefined,
+	{ escapeOutput: true }
+);
+```
+
+The optional `escapeOutput` option escapes resolved values for HTML string
+output. DOM renderers can omit it because the DOM handles text and attribute
+escaping when values are assigned.
 
 ## Querying and Sorting
 
@@ -110,7 +140,7 @@ a record satisfies the structured query.
 ```js
 const sorted = sortData(records, [
     { key: "status", direction: "asc" },
-    { key: "modified.on", direction: "desc" },
+    { key: "updated.on", direction: "desc" },
     { key: "_id", direction: "desc" }
 ]);
 ```
@@ -122,7 +152,7 @@ record.
 
 Sorting follows MongoDB conventions:
 
-- Keys support dot notation, including nested values such as `modified.on`.
+- Keys support dot notation, including nested values such as `updated.on`.
 - A missing field is treated as `null` for comparison.
 - Null and missing values sort before ordinary values in ascending order and
   after them in descending order.
@@ -188,13 +218,13 @@ npm run build:umd
 
 # Announcements
 
-All updates to this library are documented in our [CHANGELOG](https://github.com/CoCreate-app/CoCreate-utils/blob/master/CHANGELOG.md) and [releases](https://github.com/CoCreate-app/CoCreate-utils/releases). You may also subscribe to email for releases and breaking changes.
+All updates to this library are documented in our [CHANGELOG](https://github.com/CoCreateJS/CoCreate-utils/blob/master/CHANGELOG.md) and [releases](https://github.com/CoCreateJS/CoCreate-utils/releases). You may also subscribe to email for releases and breaking changes.
 
 <a name="roadmap"></a>
 
 # Roadmap
 
-If you are interested in the future direction of this project, please take a look at our open [issues](https://github.com/CoCreate-app/CoCreate-utils/issues) and [pull requests](https://github.com/CoCreate-app/CoCreate-utils/pulls). We would love to hear your feedback.
+If you are interested in the future direction of this project, please take a look at our open [issues](https://github.com/CoCreateJS/CoCreate-utils/issues) and [pull requests](https://github.com/CoCreateJS/CoCreate-utils/pulls). We would love to hear your feedback.
 
 <a name="about"></a>
 
@@ -202,7 +232,7 @@ If you are interested in the future direction of this project, please take a loo
 
 CoCreate-utils is guided and supported by the CoCreate Developer Experience Team.
 
-Please Email the Developer Experience Team [here](mailto:develop@cocreate.app) in case of any queries.
+Please Email the Developer Experience Team [here](mailto:develop@CoCreateJS.com) in case of any queries.
 
 CoCreate-utils is maintained and funded by CoCreate. The names and logos for CoCreate are trademarks of CoCreate, LLC.
 
@@ -210,9 +240,9 @@ CoCreate-utils is maintained and funded by CoCreate. The names and logos for CoC
 
 # How to Contribute
 
-We encourage contribution to our libraries (you might even score some nifty swag), please see our [CONTRIBUTING](https://github.com/CoCreate-app/CoCreate-utils/blob/master/CONTRIBUTING.md) guide for details.
+We encourage contribution to our libraries (you might even score some nifty swag), please see our [CONTRIBUTING](https://github.com/CoCreateJS/CoCreate-utils/blob/master/CONTRIBUTING.md) guide for details.
 
-We want this library to be community-driven, and CoCreate led. We need your help to realize this goal. To help make sure we are building the right things in the right order, we ask that you create [issues](https://github.com/CoCreate-app/CoCreate-utils/issues) and [pull requests](https://github.com/CoCreate-app/CoCreate-utils/pulls) or merely upvote or comment on existing issues or pull requests.
+We want this library to be community-driven, and CoCreate led. We need your help to realize this goal. To help make sure we are building the right things in the right order, we ask that you create [issues](https://github.com/CoCreateJS/CoCreate-utils/issues) and [pull requests](https://github.com/CoCreateJS/CoCreate-utils/pulls) or merely upvote or comment on existing issues or pull requests.
 
 We appreciate your continued support, thank you!
 
@@ -222,9 +252,9 @@ We appreciate your continued support, thank you!
 
 This software is dual-licensed under the GNU Affero General Public License version 3 (AGPLv3) and a commercial license.
 
--   **Open Source Use**: For open-source projects and non-commercial use, this software is available under the AGPLv3. The AGPLv3 allows you to freely use, modify, and distribute this software, provided that all modifications and derivative works are also licensed under the AGPLv3. For the full license text, see the [LICENSE file](https://github.com/CoCreate-app/CoCreate-utils/blob/master/LICENSE).
+-   **Open Source Use**: For open-source projects and non-commercial use, this software is available under the AGPLv3. The AGPLv3 allows you to freely use, modify, and distribute this software, provided that all modifications and derivative works are also licensed under the AGPLv3. For the full license text, see the [LICENSE file](https://github.com/CoCreateJS/CoCreate-utils/blob/master/LICENSE).
 
--   **Commercial Use**: For-profit companies and individuals intending to use this software for commercial purposes must obtain a commercial license. The commercial license is available when you sign up for an API key on our [website](https://cocreate.app). This license permits proprietary use and modification of the software without the copyleft requirements of the AGPLv3. It is ideal for integrating this software into proprietary commercial products and applications.
+-   **Commercial Use**: For-profit companies and individuals intending to use this software for commercial purposes must obtain a commercial license. The commercial license is available when you sign up for an API key on our [website](https://CoCreateJS.com). This license permits proprietary use and modification of the software without the copyleft requirements of the AGPLv3. It is ideal for integrating this software into proprietary commercial products and applications.
 
 If you have not purchased a commercial license and intend to use this software for commercial purposes, you are required to sign up for an API key on our website.
 
