@@ -507,16 +507,14 @@ export { getValueAttribute, transformValue, convertValue, caseHandler, regex, en
 /**
  *
  * @name contenteditable
- * @kind member
- * @attribute
+ * @kind attribute
  * @environment client
  */
 
 /**
  *
  * @name eid
- * @kind member
- * @attribute
+ * @kind attribute
  * @environment client
  */
 
@@ -524,8 +522,7 @@ export { getValueAttribute, transformValue, convertValue, caseHandler, regex, en
  * Names the property read or written by getData and setData.
  *
  * @name key | {prefix}-key
- * @kind member
- * @attribute
+ * @kind attribute
  * @valueType string
  * @environment client
  */
@@ -534,8 +531,7 @@ export { getValueAttribute, transformValue, convertValue, caseHandler, regex, en
  * When false, excludes the element from getData collection.
  *
  * @name get-data | {prefix}-get-data
- * @kind member
- * @attribute
+ * @kind attribute
  * @valueType boolean-like string
  * @acceptedValues false
  * @environment client
@@ -545,8 +541,7 @@ export { getValueAttribute, transformValue, convertValue, caseHandler, regex, en
  * When false, excludes the element from setData mapping.
  *
  * @name set-data | {prefix}-set-data
- * @kind member
- * @attribute
+ * @kind attribute
  * @valueType boolean-like string
  * @acceptedValues false
  * @environment client
