@@ -11,9 +11,9 @@ import { encodeContent, decodeContent, getContentType, mimeTypes } from '../src/
 const modules = new URL('../../', import.meta.url);
 const references = new URL('../src/modules/file/references/', import.meta.url);
 const targets = {
-    http: 'CoCreate-file-server/src/index.js',
-    client: 'CoCreate-file/src/client/index.js',
-    server: 'CoCreate-file/src/server/index.js',
+    http: 'file/src/server/index.js',
+    client: 'file/src/client/index.js',
+    server: 'file/src/client/node/index.js',
     url: 'CoCreate-url-uploader/src/index.js'
 };
 function source(name) {

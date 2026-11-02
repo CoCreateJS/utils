@@ -1,4 +1,4 @@
-// Reference snapshot from CoCreate-file-server/src/index.js.
+// Reference snapshot from file/src/server/index.js.
 // Preserved for comparison; not imported or executed by Utils.
 // Surrounding component services remain dependencies of these excerpts.
 
