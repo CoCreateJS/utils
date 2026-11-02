@@ -1,3 +1,68 @@
+# [2.0.0](https://github.com/CoCreateJS/utils/compare/v1.44.2...v2.0.0) (2026-11-02)
+
+
+### Bug Fixes
+
+* add Deno specific entries to .gitignore ([4b2d6bb](https://github.com/CoCreateJS/utils/commit/4b2d6bb2912ffcd19b0c406a89a3cfc3d61fad93))
+* add searchParams ([fbaf504](https://github.com/CoCreateJS/utils/commit/fbaf50465de7095f292a0cdcd6d61246e0adfd7e))
+* bump [@cocreate](https://github.com/cocreate) dependencies ([5a21ec3](https://github.com/CoCreateJS/utils/commit/5a21ec392e95bdece833430f22c603555413d4f5))
+* bump versions ([8115187](https://github.com/CoCreateJS/utils/commit/8115187fc8043a9730516ece675432252f8098a2))
+* bumped dependencies ([98c2891](https://github.com/CoCreateJS/utils/commit/98c2891197c1866b3335134bcae8915640930326))
+* code imporovements ([64a01ca](https://github.com/CoCreateJS/utils/commit/64a01ca2e42c52350d609520be49cc43177193a1))
+* handle empty dot notation input ([bf23bcd](https://github.com/CoCreateJS/utils/commit/bf23bcd48cf1e564279b3831807fae69ed9260e2))
+* handle scalar query operands safely ([778eb4e](https://github.com/CoCreateJS/utils/commit/778eb4e583cf71f05ff9f3433084f9c7045f32e5))
+* parse quoted HTML attributes with angle brackets ([8251e5a](https://github.com/CoCreateJS/utils/commit/8251e5a7032109e61fd01d95c12d653c8ce2af52))
+* preserve query expressions ([96ce662](https://github.com/CoCreateJS/utils/commit/96ce662ecfaf320bfd20a7c8d968fccebc39f073))
+* preserve traversal selectors in query operators ([8b82414](https://github.com/CoCreateJS/utils/commit/8b824140e47d75150d82741016c88c883c6157d1))
+* remove trailing slash from node_modules entry in .gitignore ([974886f](https://github.com/CoCreateJS/utils/commit/974886f51655bf663546d6b6e562154eb7cb7c50))
+* replace legacy filter field ([e793b84](https://github.com/CoCreateJS/utils/commit/e793b84900f6daa1580fa50ffaa568fc5445289b))
+* resolve dotted AST operators ([69d3026](https://github.com/CoCreateJS/utils/commit/69d302671582e12a0ef551797b9f2e5bd60f6241))
+* resolve prefixed query attributes ([3edd032](https://github.com/CoCreateJS/utils/commit/3edd03246debec3386a1ef20f69ae164fa5431d1))
+* support iframe realm query results ([2cc2a26](https://github.com/CoCreateJS/utils/commit/2cc2a265e420c0a90d7cdbfb6bc9fcb7901513f0))
+* update git url ([96e6ad9](https://github.com/CoCreateJS/utils/commit/96e6ad9e3520a339711895b176a254aac49e12c9))
+* update GitHub Actions to use latest versions and sync package.json description ([94fb465](https://github.com/CoCreateJS/utils/commit/94fb4657cb90571deb9b90e652009c4194e7b034))
+* update package.json to streamline exports and clean up dependencies ([6a23308](https://github.com/CoCreateJS/utils/commit/6a2330893ad9ebf06efe6b6459760b8c5b2bff6a))
+* update security module and exports for lower level api ([06d6805](https://github.com/CoCreateJS/utils/commit/06d68051257eee25844ca970fae0c1e0e92aae85))
+
+
+### chore
+
+* record package identity migration as breaking ([a17a574](https://github.com/CoCreateJS/utils/commit/a17a574f6d947e2833c1781685b6de7f15e828cc))
+
+
+### Features
+
+* add attribute AST operators ([b9246b0](https://github.com/CoCreateJS/utils/commit/b9246b0deb6d7857212c5329d7fc564eb1950118))
+* add attribute utility functions to server module and update package.json ([acba1a3](https://github.com/CoCreateJS/utils/commit/acba1a3148a80277eae90fc253a95151c790294c))
+* Add country location data and retrieval function ([4c03a90](https://github.com/CoCreateJS/utils/commit/4c03a90052d8d591166c12e50608340057dc4f46))
+* add form data mapping utilities ([0b8cf07](https://github.com/CoCreateJS/utils/commit/0b8cf070eae2d905b858a4a53961124e9b51e055))
+* Add getClientInfo utility for client IP and geolocation retrieval ([a24d942](https://github.com/CoCreateJS/utils/commit/a24d9422a8954f78e85d166455688ca04aa9c884))
+* add HTMLScanner class and update exports in index.js ([72581d9](https://github.com/CoCreateJS/utils/commit/72581d913a60b743f25b80cc28d72e58a60752d4))
+* add iframe helpers and query operators ([b74b792](https://github.com/CoCreateJS/utils/commit/b74b7923f923fcda0f9430aeff4aad2110f2b9dd))
+* add iframe query contexts and selection export ([564e2ba](https://github.com/CoCreateJS/utils/commit/564e2ba73185cf364e7db23b1f3ceb3970e8b8d0))
+* Add new utility modules for time and unique identifier generation ([db80725](https://github.com/CoCreateJS/utils/commit/db80725e201d4b420c094eac2b8d732de9917937))
+* add processOperators and processOperatorsAsync exports from ast/operators.js ([d0be4c1](https://github.com/CoCreateJS/utils/commit/d0be4c1ee1555970ca85416ec2eb6009c2cc1c8a))
+* add security module with JWT generation and signature verification functions ([29927fe](https://github.com/CoCreateJS/utils/commit/29927fe6f530055f2f2e579b31673aa47bd5eed6))
+* add shared file content helpers ([b21d811](https://github.com/CoCreateJS/utils/commit/b21d8112baee2971c19682003401c971b38a0bef))
+* align data sorting with mongodb semantics ([a8f6566](https://github.com/CoCreateJS/utils/commit/a8f65666ac74aa179293e7f6d1492d322878e24c))
+* bumped all dependency versions ([1769349](https://github.com/CoCreateJS/utils/commit/1769349612fdb6514b7b0e82d9bf79cb14bf43e9))
+* created independent browser and server exports ([3fdcf16](https://github.com/CoCreateJS/utils/commit/3fdcf1664304032bd8cc0d9b008c86ccda37e417))
+* enhance attribute parsing and removal in HTMLScanner for better accuracy ([c7b48a3](https://github.com/CoCreateJS/utils/commit/c7b48a312e5c094111590a3bcebf08bc6ce235e0))
+* Enhance resolveInfo function to include continent in return object and improve region handling ([516f861](https://github.com/CoCreateJS/utils/commit/516f861c39bcb6e9ed0ed4b19532781756e32449))
+* expose query elements subpath ([40653d3](https://github.com/CoCreateJS/utils/commit/40653d3f86c29723175f67972d44ace35f7b0609))
+* handle arrays ([e96b25e](https://github.com/CoCreateJS/utils/commit/e96b25eb7b064f941f8ab3e4bed7b445ccd3d110))
+* move isEqualArray and isEqualObject to dataQuery module and update imports ([d73351b](https://github.com/CoCreateJS/utils/commit/d73351bb972139746c5a2d4ef41fd51e213f07f9))
+* resolve property casing and support scoped AST assignments ([7bbe8a2](https://github.com/CoCreateJS/utils/commit/7bbe8a2596f6cf427017c7e8aa4aac472928351f))
+* searchParamsToObject ([4e9fc15](https://github.com/CoCreateJS/utils/commit/4e9fc15530d61a4baa4019d8e93cc321290f7e64))
+* share value transformations and improve selectors and search ([1be4a3c](https://github.com/CoCreateJS/utils/commit/1be4a3cd72901f0487ab0f4ccde0f874855c59e2))
+* support AST browser globals and explicit async callbacks ([d6b1944](https://github.com/CoCreateJS/utils/commit/d6b19443bb05e0e12866d374046cef5ead0049cc))
+* **utils:** expose shared renderValue and document APIs ([4e3f3e4](https://github.com/CoCreateJS/utils/commit/4e3f3e451043a0894dd3a68bba5a3414c781f4c8))
+
+
+### BREAKING CHANGES
+
+* Consumers must install @cocreate/utils and use the CoCreateJS repository identity; previous package and repository identities are no longer supported.
+
 ## [1.44.2](https://github.com/CoCreateJS/CoCreate-utils/compare/v1.44.1...v1.44.2) (2026-07-19)
 
 
