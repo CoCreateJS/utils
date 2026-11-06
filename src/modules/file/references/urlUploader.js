@@ -15,8 +15,8 @@ async function fetchFileFromURL(data) {
         const file = data.file;
         if (!file || !file.src) {
             data.error = "Missing file object or file source URL.";
-            if (data.socket && server && server.wsManager) {
-                return server.wsManager.send(data);
+            if (data.socket && server?.send) {
+                return server.send(data);
             }
             return;
         }
@@ -27,8 +27,8 @@ async function fetchFileFromURL(data) {
 
         if (!response.ok) {
             data.error = "Failed to fetch file: " + response.statusText;
-            if (data.socket && server && server.wsManager) {
-                return server.wsManager.send(data);
+            if (data.socket && server?.send) {
+                return server.send(data);
             }
             return;
         }
@@ -54,14 +54,14 @@ async function fetchFileFromURL(data) {
             }
         }
 
-        if (data.socket && server && server.wsManager) {
-            server.wsManager.send(data);
+        if (data.socket && server?.send) {
+            server.send(data);
         }
     } catch (error) {
         console.error("Error fetching file:", error);
         data.error = "Internal uploader error while retrieving resource.";
-        if (data.socket && server && server.wsManager) {
-            server.wsManager.send(data);
+        if (data.socket && server?.send) {
+            server.send(data);
         }
     }
 }
