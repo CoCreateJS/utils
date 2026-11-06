@@ -13,14 +13,14 @@ Reference snapshots preserve the existing implementations for comparison:
 | `references/upload.js` | CoCreate File server: filesystem reads, source templating, and transport encoding; used by COC Upload |
 | `references/download.js` | CoCreate File server: stored sources decoded for filesystem writes |
 | `references/normalizeSrc.js` | CoCreate File Server: stored sources decoded for HTTP responses, followed by rendering |
-| `references/urlUploader.js` | CoCreate URL Uploader: fetch response ArrayBuffer converted to raw Base64, with socket envelope and file metadata |
+| `references/urlUploader.js` | CoCreate URL Uploader: fetch response ArrayBuffer converted to raw Base64, with file metadata and `server.send()` delivery |
 | `references/mimeTypes.json` | Original File server MIME extension lookup for regression comparisons |
 
 The snapshots are reference material and are not imported by the helpers.
 `test/fileContentCompatibility.test.js` executes these snapshots and the live
 consumer functions with identical fixtures, comparing their output bytes and
 transport strings. It covers each MIME mapping, FileReader modes, BOMs, data URLs,
-malformed-input fallbacks, HTTP rendering, and the URL Uploader envelope. A native
+malformed-input fallbacks, HTTP rendering, and the URL Uploader server envelope. A native
 filesystem/HTTP test writes and serves the same binary file to verify actual I/O.
 Browser FileReader comparisons use a stand-in with real File/Blob objects; they
 do not replace a browser smoke test.

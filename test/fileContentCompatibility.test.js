@@ -224,16 +224,16 @@ for (const [name, bytes] of [
     });
 }
 
-test('URL Uploader reference: fetch response, raw Base64, metadata, and same envelope', async () => {
+test('URL Uploader reference: fetch response, raw Base64, metadata, and server envelope', async () => {
     const payload = Uint8Array.from({ length: 100000 }, (_, index) => index % 256);
     const run = async code => {
         const sent = [];
         const fetchFileFromURL = compile(section(code, 'async function fetchFileFromURL(', '\n/**\n * Auto-initialization'), 'fetchFileFromURL', {
-            URL, server: { wsManager: { send: value => sent.push(value) } }, console,
+            URL, server: { send: value => sent.push(value) }, console,
             arrayBufferToBase64: compile(section(reference('urlUploader'), 'function arrayBufferToBase64(', '\n/**'), 'arrayBufferToBase64'),
             fetch: async () => ({ ok: true, arrayBuffer: async () => payload.buffer, headers: new Map([['content-type', 'image/png']]) })
         });
-        const data = { socket: {}, file: { src: 'https://example.test/file.png', custom: 'preserved' } };
+        const data = { file: { src: 'https://example.test/file.png', custom: 'preserved' } };
         await fetchFileFromURL(data);
         assert.equal(sent[0], data);
         assert.equal(data.file.src, Buffer.from(payload).toString('base64'));

@@ -7,18 +7,15 @@ function arrayBufferToBase64(buffer) {
 
 /**
  * Fetches the binary asset from a remote URL, updates the file parameters,
- * converts the raw output to Base64, and sends the updated payload back to the client socket.
- * @param {Object} data - Socket event payload
+ * converts the raw output to Base64, and sends the updated payload through the server service.
+ * @param {Object} data - Server message envelope with file data and routing fields
  */
 async function fetchFileFromURL(data) {
     try {
         const file = data.file;
         if (!file || !file.src) {
             data.error = "Missing file object or file source URL.";
-            if (data.socket && server?.send) {
-                return server.send(data);
-            }
-            return;
+            return server.send(data);
         }
 
         // Store original URL before file.src gets overwritten with Base64 content
@@ -27,10 +24,7 @@ async function fetchFileFromURL(data) {
 
         if (!response.ok) {
             data.error = "Failed to fetch file: " + response.statusText;
-            if (data.socket && server?.send) {
-                return server.send(data);
-            }
-            return;
+            return server.send(data);
         }
 
         const arrayBuffer = await response.arrayBuffer();
@@ -54,15 +48,11 @@ async function fetchFileFromURL(data) {
             }
         }
 
-        if (data.socket && server?.send) {
-            server.send(data);
-        }
+        return server.send(data);
     } catch (error) {
         console.error("Error fetching file:", error);
         data.error = "Internal uploader error while retrieving resource.";
-        if (data.socket && server?.send) {
-            server.send(data);
-        }
+        return server.send(data);
     }
 }
 
