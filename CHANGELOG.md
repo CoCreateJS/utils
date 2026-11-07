@@ -1,3 +1,11 @@
+## [2.0.2](https://github.com/CoCreateJS/utils/compare/v2.0.1...v2.0.2) (2026-11-07)
+
+
+### Bug Fixes
+
+* route component responses through unified server send ([27cb6d3](https://github.com/CoCreateJS/utils/commit/27cb6d313ae5b8b8beeb5c03192a158780079db6))
+* route file responses through server send ([387916b](https://github.com/CoCreateJS/utils/commit/387916b4fe0fedd727b01a305542d108f81940a5))
+
 ## [2.0.1](https://github.com/CoCreateJS/utils/compare/v2.0.0...v2.0.1) (2026-11-05)
 
 
