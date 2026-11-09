@@ -238,6 +238,37 @@ export class Security {
     }
 
     /**
+     * Generates an RSA key pair with an OpenSSH-formatted public key.
+     * The public key can be registered with GitHub as a repository deploy key.
+     * @param {number} [modulusLength=3072] - RSA modulus size in bits
+     * @returns {{publicKey: string, privateKey: string}} OpenSSH public key and PEM private key
+     */
+    static generateSshKeyPair(modulusLength = 3072) {
+        const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", {
+            modulusLength,
+            publicKeyEncoding: { type: "spki", format: "pem" },
+            privateKeyEncoding: { type: "pkcs1", format: "pem" }
+        });
+        const jwk = crypto.createPublicKey(publicKey).export({ format: "jwk" });
+        const sshString = value => {
+            const length = Buffer.alloc(4);
+            length.writeUInt32BE(value.length);
+            return Buffer.concat([length, value]);
+        };
+        const mpint = value => {
+            const buffer = Buffer.from(value, "base64url");
+            return sshString(buffer[0] & 0x80 ? Buffer.concat([Buffer.from([0]), buffer]) : buffer);
+        };
+        const encodedKey = Buffer.concat([
+            sshString(Buffer.from("ssh-rsa")),
+            mpint(jwk.e),
+            mpint(jwk.n)
+        ]).toString("base64");
+
+        return { publicKey: `ssh-rsa ${encodedKey}`, privateKey };
+    }
+
+    /**
      * Constructs API keys with custom service prefixes and entropy lengths.
      * @param {Object} [options={}] - Options ({ prefix, byteLength, encoding })
      * @returns {{apiKey: string, secret: string, hashedKey: string}} Key details

@@ -358,3 +358,151 @@ Both forms preserve the surrounding scope, parameters, and optional `bind`.
 `$await` requires asynchronous evaluation; a synchronous callback rejects it.
 A synchronous callback can still return a Promise directly without awaiting
 it. Async configuration evaluation does not change a callback's declaration.
+
+### Loop and function control
+
+Use `"$break"` to exit the nearest `$for`, and `"$continue"` to skip the rest
+of its current iteration. Both work inside nested `$if` branches:
+
+```json
+{
+    "$for": {
+        "$items": {
+            "item": {
+                "skip": {
+                    "$if": {
+                        "$item.status": {
+                            "$eq": { "disabled": "$continue" }
+                        }
+                    }
+                },
+                "stop": {
+                    "$if": {
+                        "$item.status": {
+                            "$eq": { "finished": "$break" }
+                        }
+                    }
+                },
+                "process": { "$processItem": "$item" }
+            }
+        }
+    }
+}
+```
+
+Object forms such as `{ "$break": true }` and `{ "$continue": false }` also
+execute unconditionally. Their payloads are ignored and never evaluated.
+A conditional belongs in `$if`; setting the payload to `false` does not disable
+the command. These names are reserved when used as executable values or keys.
+
+`{ "$return": value }` evaluates its value and exits the current AST function,
+including through nested conditions and loops. Bare `"$return"` exits with
+`undefined`. At an AST entry point outside a callback, return ends that
+evaluation. Existing implicit function results remain supported.
+
+Break and continue cannot cross a `$function` or `$async` function boundary;
+using either without an enclosing loop in that function throws a `SyntaxError`.
+All forms work in `astSync` and `astAsync`, including `$for` with `$await` in
+async evaluation. Breaking or returning closes the iterator as JavaScript does.
+Labeled break and continue are not supported.
+
+Async arrays inside loop and function bodies execute in order so later steps
+do not start after break, continue, or return. Other async arrays retain their
+concurrent evaluation; use an object for sequential steps at an entry point.
+
+### While and do-while loops
+
+Put `$do` before `$while` to run the body once before testing whether to repeat.
+For example, poll an API until it returns the boolean `true`:
+
+```json
+{
+    "$do": {
+        "ready": { "$TestAPI": [] }
+    },
+    "$while": "$($ready !== true)"
+}
+```
+
+`TestAPI` is an application function supplied in the sandbox, not a built-in
+operator. Use `astAsync` for asynchronous requests: each call is awaited before
+testing the condition, and requests execute one at a time. The example is
+equivalent to:
+
+```js
+let ready;
+do {
+    ready = await TestAPI();
+} while (ready !== true);
+```
+
+Put `$while` before `$do` for a JavaScript-style `while` loop that checks first
+and may execute zero times:
+
+```json
+{
+    "$while": "$($state.count < 10)",
+    "$do": {
+        "$state.count": "$($state.count + 1)"
+    }
+}
+```
+
+The pair must be the only two keys in its object; their order determines which
+loop runs. Nest that object under a named step when composing a larger flow.
+The condition is reevaluated on every check using JavaScript truthiness. It
+can be an expression, a scoped value, or another AST operation. Async
+evaluation also awaits condition results.
+
+The body shares its surrounding scope, so values such as `ready` written in
+the body are available to the condition and following steps. Body arrays run
+sequentially. `$continue` jumps to the next condition check; `$break` exits the
+nearest `$while` or `$for` without checking again. `$return` exits the current
+function or AST entry point. Function boundaries still isolate loop control.
+
+There is no iteration limit. A condition of `true` repeats until the body
+breaks, returns, or throws; the AST author controls termination.
+
+### Native AST roots
+
+AST exposes native APIs as top-level roots, so their methods can be composed
+without adding an operator for each method. Shared roots include `$Promise`,
+`$URL`, `$TextEncoder`, typed arrays, Fetch APIs, Web Streams, timers, and the
+standard JavaScript collections and error constructors. Optional globals are
+`undefined` when the environment does not provide them. Existing CoCreate
+helpers remain available.
+
+Import `astSync` or `astAsync` from `@cocreate/utils` in Node to register the
+server scope. It adds `$crypto`, `$fs`, `$buffer`, `$Buffer`, `$util`, `$process`,
+and the other enabled public top-level Node modules, plus the existing `$security`.
+Native modules load on access using Node's
+[`process.getBuiltinModule`](https://nodejs.org/api/process.html#processgetbuiltinmoduleid).
+The explicit list is in `src/modules/ast/serverGlobals.js`; unsupported entries
+such as `ffi` remain commented beside the active entries. Currently unused
+`dgram`, `sqlite`, and `repl` are also commented out and can be enabled later.
+Deprecated modules (`constants`, `domain`, `punycode`, and `sys`) are omitted.
+Each registry entry includes a short description of its purpose.
+
+```json
+{
+    "generate": { "$util.promisify": "$crypto.generateKeyPair" },
+    "pair": { "$generate": ["ed25519", {}] },
+    "$return": {
+        "$pair.publicKey.export": { "type": "spki", "format": "pem" }
+    }
+}
+```
+
+Use `astAsync` for this example. Namespaced methods retain their native receiver,
+and return values can be stored and used in later steps. APIs such as
+`$fs.promises.readFile` are available through their module root. Explicit
+sandbox bindings can override defaults for an individual evaluation.
+
+In a browser, `$crypto` is native Web Crypto, also reachable as `$window.crypto`.
+On the server, `$crypto` is Node's crypto module; its Web Crypto API is available
+under `$crypto.webcrypto`. Node-only imports stay out of the browser bundle.
+The direct `src/modules/ast/index.js` entry provides the shared/browser scope;
+`src/modules/ast/server.js` registers the additional server roots.
+
+Server APIs execute with the Node process's permissions. Registering these roots
+provides capabilities; it does not isolate workflow execution from the host.

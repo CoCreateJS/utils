@@ -9,12 +9,58 @@ import {
     processOperatorsAsync, 
     unpackTokens, 
     setASTEvaluators, 
-    customOperators 
+    customOperators,
+    globalOperatorNames
 } from "./operators.js";
 
 const isBrowser = typeof window !== 'undefined';
 export const isomorphicSandbox = sharedGlobalsScope;
-let baseSandboxScope = isBrowser ? Object.setPrototypeOf(browserGlobalsScope, sharedGlobalsScope) : sharedGlobalsScope;
+let baseSandboxScope = isBrowser ? Object.setPrototypeOf(browserGlobalsScope, sharedGlobalsScope) : Object.create(sharedGlobalsScope);
+
+// Register environment roots without adding server imports to the browser graph.
+export function registerASTGlobals(globals) {
+    const descriptors = Object.getOwnPropertyDescriptors(globals);
+    Object.defineProperties(baseSandboxScope, descriptors);
+    for (const [name, descriptor] of Object.entries(descriptors)) {
+        globalOperatorNames.add(name);
+        customOperators.set(name, descriptor.get
+            ? function (...args) {
+                const value = descriptor.get.call(this);
+                return typeof value === "function" ? value.apply(this, args) : value;
+            }
+            : descriptor.value);
+    }
+}
+
+// Private signals unwind nested expressions until their owning loop or entry point.
+class ASTControl {
+    constructor(type, value) {
+        this.type = type;
+        this.value = value;
+    }
+}
+
+function finishControl(control) {
+    if (!(control instanceof ASTControl)) throw control;
+    if (control.type === "$return") return control.value;
+    throw new SyntaxError(`AST '${control.type}' requires an enclosing loop in the same function.`);
+}
+
+export function astSync(options = {}) {
+    try {
+        return executeSync(options);
+    } catch (control) {
+        return finishControl(control);
+    }
+}
+
+export async function astAsync(options = {}) {
+    try {
+        return await executeAsync(options);
+    } catch (control) {
+        return finishControl(control);
+    }
+}
 
 const conditionalOperators = new Set([
     "$eq",
@@ -151,6 +197,17 @@ function getForDefinition(definition) {
     return { source, variable, body, shouldAwait };
 }
 
+function getWhileDefinition(definition, keys) {
+    if (keys.length !== 2 || !keys.includes("$do") || !keys.includes("$while")) {
+        throw new Error("AST loops require exactly one '$do' body and one '$while' condition.");
+    }
+    return {
+        body: definition.$do,
+        condition: definition.$while,
+        doFirst: keys[0] === "$do"
+    };
+}
+
 function createIterationScope({ sandbox, registry, variable, value }) {
     const iterationSandbox = sandbox instanceof Map
         ? undefined
@@ -244,7 +301,8 @@ function createASTFunction(expression, { sandbox, node, registry }) {
             executeAST: body,
             sandbox: functionSandbox,
             node,
-            registry: functionRegistry
+            registry: functionRegistry,
+            sequential: true
         });
     };
     const callback = isAsync
@@ -317,7 +375,7 @@ function resolveConditionalValueSync(value, context) {
         }
     }
 
-    return astSync({ executeAST: value, ...context });
+    return executeSync({ executeAST: value, ...context });
 }
 
 async function resolveConditionalValueAsync(value, context) {
@@ -328,7 +386,7 @@ async function resolveConditionalValueAsync(value, context) {
         }
     }
 
-    return await astAsync({ executeAST: value, ...context });
+    return await executeAsync({ executeAST: value, ...context });
 }
 
 function selectConditionalBranch({ definition, evaluate, exists }) {
@@ -409,7 +467,7 @@ async function resolveNullishAsync(values, context) {
     }
 }
 
-export function astSync({ executeAST, sandbox, node, registry } = {}) {
+function executeSync({ executeAST, sandbox, node, registry, sequential = false } = {}) {
     const targetNode = executeAST !== undefined ? executeAST : node;
     if (targetNode === null || targetNode === undefined) return targetNode;
 
@@ -425,6 +483,9 @@ export function astSync({ executeAST, sandbox, node, registry } = {}) {
 
     // Leaf String Evaluator: route to OperatorJS engine
     if (typeof targetNode === "string") {
+        if (targetNode === "$break" || targetNode === "$continue" || targetNode === "$return") {
+            throw new ASTControl(targetNode);
+        }
         const scoped = resolveScopedPath(targetNode, registry, sandbox);
         if (scoped.found) return scoped.value;
 
@@ -437,7 +498,7 @@ export function astSync({ executeAST, sandbox, node, registry } = {}) {
 
     // List Evaluator: maps items sequentially in a synchronous pipeline
     if (Array.isArray(targetNode)) {
-        return targetNode.map(item => astSync({ executeAST: item, sandbox, node, registry }));
+        return targetNode.map(item => executeSync({ executeAST: item, sandbox, node, registry, sequential }));
     }
 
     if (typeof targetNode === "object") {
@@ -446,6 +507,25 @@ export function astSync({ executeAST, sandbox, node, registry } = {}) {
         }
 
         const keys = Object.keys(targetNode);
+        if (keys.includes("$do") || keys.includes("$while")) {
+            const { body, condition, doFirst } = getWhileDefinition(targetNode, keys);
+            const context = { sandbox, node, registry, sequential: true };
+            let firstIteration = true;
+            let result;
+            while ((firstIteration && doFirst) || resolveConditionalValueSync(condition, context)) {
+                firstIteration = false;
+                try {
+                    result = executeSync({ executeAST: body, ...context });
+                } catch (control) {
+                    if (!(control instanceof ASTControl)) throw control;
+                    if (control.type === "$break") break;
+                    if (control.type === "$continue") continue;
+                    throw control;
+                }
+            }
+            return result;
+        }
+
         const structuralKey = keys.length === 1 ? keys[0] : undefined;
 
         const isConditionalExpression = structuralKey === "$if" || structuralKey?.startsWith("$if.");
@@ -454,8 +534,18 @@ export function astSync({ executeAST, sandbox, node, registry } = {}) {
             throw new Error(`AST operators must be composed as nested objects, not '${structuralKey}'.`);
         }
 
+        if (structuralKey === "$break" || structuralKey === "$continue") {
+            throw new ASTControl(structuralKey);
+        }
+
+        if (structuralKey === "$return") {
+            throw new ASTControl("$return", executeSync({
+                executeAST: targetNode.$return, sandbox, node, registry, sequential
+            }));
+        }
+
         if (structuralKey === "$null") {
-            return resolveNullishSync(targetNode.$null, { sandbox, node, registry });
+            return resolveNullishSync(targetNode.$null, { sandbox, node, registry, sequential });
         }
 
         if (structuralKey === "$await") {
@@ -465,19 +555,19 @@ export function astSync({ executeAST, sandbox, node, registry } = {}) {
         if (structuralKey === "$function" || structuralKey === "$async") {
             const { callback, bind } = createASTFunction(targetNode, { sandbox, node, registry });
             if (bind === undefined) return callback;
-            const thisArg = astSync({ executeAST: bind, sandbox, node, registry });
+            const thisArg = executeSync({ executeAST: bind, sandbox, node, registry, sequential });
             return callback.bind(thisArg);
         }
 
         if (isConditionalExpression) {
-            const context = { sandbox, node, registry };
+            const context = { sandbox, node, registry, sequential };
             const selected = selectConditionalBranch({
                 definition: getIfDefinition(targetNode[structuralKey], structuralKey),
                 evaluate: (value) => resolveConditionalValueSync(value, context),
                 exists: (value) => resolveScopedPath(value, registry, sandbox).found
             });
             return selected.found
-                ? astSync({ executeAST: selected.branch, ...context })
+                ? executeSync({ executeAST: selected.branch, ...context })
                 : undefined;
         }
 
@@ -491,7 +581,7 @@ export function astSync({ executeAST, sandbox, node, registry } = {}) {
             if (shouldAwait) {
                 throw new Error("AST '$for' with '$await' requires astAsync.");
             }
-            const source = resolveConditionalValueSync(sourceExpression, { sandbox, node, registry });
+            const source = resolveConditionalValueSync(sourceExpression, { sandbox, node, registry, sequential });
             if (!source || typeof source[Symbol.iterator] !== "function") {
                 throw new TypeError("AST '$for' source is not synchronously iterable.");
             }
@@ -504,12 +594,20 @@ export function astSync({ executeAST, sandbox, node, registry } = {}) {
                     variable,
                     value
                 });
-                result = astSync({
-                    executeAST: body,
-                    sandbox: iterationSandbox,
-                    node,
-                    registry: iterationRegistry
-                });
+                try {
+                    result = executeSync({
+                        executeAST: body,
+                        sandbox: iterationSandbox,
+                        node,
+                        registry: iterationRegistry,
+                        sequential: true
+                    });
+                } catch (control) {
+                    if (!(control instanceof ASTControl)) throw control;
+                    if (control.type === "$break") break;
+                    if (control.type === "$continue") continue;
+                    throw control;
+                }
             }
             return result;
         }
@@ -524,11 +622,12 @@ export function astSync({ executeAST, sandbox, node, registry } = {}) {
 
             if (opFunc !== undefined || assignmentScope) {
                 const { nestedSandbox, nestedRegistry } = createNestedScope(sandbox, registry);
-                const evaluatedParam = astSync({
+                const evaluatedParam = executeSync({
                     executeAST: targetNode[key],
                     sandbox: nestedSandbox,
                     node,
-                    registry: nestedRegistry
+                    registry: nestedRegistry,
+                    sequential
                 });
                 if (assignmentScope && typeof opFunc !== "function") {
                     dotNotationToObject({ [key]: evaluatedParam }, assignmentScope);
@@ -558,13 +657,17 @@ export function astSync({ executeAST, sandbox, node, registry } = {}) {
 
         const resolvedObject = {};
         for (const key of keys) {
+            if (key === "$break" || key === "$continue") {
+                throw new ASTControl(key);
+            }
             if (key === "$return") {
-                return astSync({
+                throw new ASTControl("$return", executeSync({
                     executeAST: targetNode[key],
                     sandbox,
                     node,
-                    registry
-                });
+                    registry,
+                    sequential
+                }));
             }
 
             if (key !== "$return" && key.startsWith("$")) {
@@ -573,11 +676,12 @@ export function astSync({ executeAST, sandbox, node, registry } = {}) {
                     typeof operator.value === "function" ||
                     operator.assignmentScope
                 ) {
-                    resolvedObject[key] = astSync({
+                    resolvedObject[key] = executeSync({
                         executeAST: { [key]: targetNode[key] },
                         sandbox,
                         node,
-                        registry
+                        registry,
+                        sequential
                     });
                     continue;
                 }
@@ -586,27 +690,27 @@ export function astSync({ executeAST, sandbox, node, registry } = {}) {
             let finalKey = key;
 
             if (key.startsWith("$") && !["$array", "filter", "$storage", "$database"].includes(key)) {
-                const resolvedKey = astSync({ executeAST: key, sandbox, node, registry });
+                const resolvedKey = executeSync({ executeAST: key, sandbox, node, registry, sequential });
                 if (typeof resolvedKey === "string" || typeof resolvedKey === "number") {
                     finalKey = String(resolvedKey);
                 }
             } else if (key.includes('{{') && key.includes('}}')) {
-                finalKey = resolveInlinePlaceholdersSync(key, { sandbox, node, registry });
+                finalKey = resolveInlinePlaceholdersSync(key, { sandbox, node, registry, sequential });
             }
 
             let finalValue = targetNode[key];
             if (typeof finalValue === "string") {
                 if (finalValue.startsWith("$") && !["$array", "filter", "$storage", "$database"].includes(finalValue)) {
-                    finalValue = astSync({ executeAST: finalValue, sandbox, node, registry });
+                    finalValue = executeSync({ executeAST: finalValue, sandbox, node, registry, sequential });
                 } else if (finalValue.includes('{{') && finalValue.includes('}}')) {
-                    finalValue = resolveInlinePlaceholdersSync(finalValue, { sandbox, node, registry });
+                    finalValue = resolveInlinePlaceholdersSync(finalValue, { sandbox, node, registry, sequential });
                 }
             } else if (Array.isArray(finalValue) || (typeof finalValue === "object" && finalValue !== null)) {
-                finalValue = astSync({ executeAST: finalValue, sandbox, node, registry });
+                finalValue = executeSync({ executeAST: finalValue, sandbox, node, registry, sequential });
             }
 
             if (finalKey === '$return') {
-                return finalValue;
+                throw new ASTControl("$return", finalValue);
             }
 
             resolvedObject[finalKey] = finalValue;
@@ -621,7 +725,7 @@ export function astSync({ executeAST, sandbox, node, registry } = {}) {
     return targetNode;
 }
 
-export async function astAsync({ executeAST, sandbox, node, registry } = {}) {
+async function executeAsync({ executeAST, sandbox, node, registry, sequential = false } = {}) {
     const targetNode = executeAST !== undefined ? executeAST : node;
     if (targetNode === null || targetNode === undefined) return targetNode;
 
@@ -637,6 +741,9 @@ export async function astAsync({ executeAST, sandbox, node, registry } = {}) {
 
     // Leaf String Evaluator: route to OperatorJS engine
     if (typeof targetNode === "string") {
+        if (targetNode === "$break" || targetNode === "$continue" || targetNode === "$return") {
+            throw new ASTControl(targetNode);
+        }
         const scoped = resolveScopedPath(targetNode, registry, sandbox);
         if (scoped.found) return scoped.value;
 
@@ -647,10 +754,17 @@ export async function astAsync({ executeAST, sandbox, node, registry } = {}) {
         return targetNode;
     }
 
-    // List Evaluator: maps items concurrently
+    // Statement arrays execute sequentially inside loops and functions.
     if (Array.isArray(targetNode)) {
+        if (sequential) {
+            const results = [];
+            for (const item of targetNode) {
+                results.push(await executeAsync({ executeAST: item, sandbox, node, registry, sequential }));
+            }
+            return results;
+        }
         return await Promise.all(
-            targetNode.map(item => astAsync({ executeAST: item, sandbox, node, registry }))
+            targetNode.map(item => executeAsync({ executeAST: item, sandbox, node, registry, sequential }))
         );
     }
 
@@ -660,6 +774,25 @@ export async function astAsync({ executeAST, sandbox, node, registry } = {}) {
         }
 
         const keys = Object.keys(targetNode);
+        if (keys.includes("$do") || keys.includes("$while")) {
+            const { body, condition, doFirst } = getWhileDefinition(targetNode, keys);
+            const context = { sandbox, node, registry, sequential: true };
+            let firstIteration = true;
+            let result;
+            while ((firstIteration && doFirst) || await resolveConditionalValueAsync(condition, context)) {
+                firstIteration = false;
+                try {
+                    result = await executeAsync({ executeAST: body, ...context });
+                } catch (control) {
+                    if (!(control instanceof ASTControl)) throw control;
+                    if (control.type === "$break") break;
+                    if (control.type === "$continue") continue;
+                    throw control;
+                }
+            }
+            return result;
+        }
+
         const structuralKey = keys.length === 1 ? keys[0] : undefined;
 
         const isConditionalExpression = structuralKey === "$if" || structuralKey?.startsWith("$if.");
@@ -668,35 +801,46 @@ export async function astAsync({ executeAST, sandbox, node, registry } = {}) {
             throw new Error(`AST operators must be composed as nested objects, not '${structuralKey}'.`);
         }
 
+        if (structuralKey === "$break" || structuralKey === "$continue") {
+            throw new ASTControl(structuralKey);
+        }
+
+        if (structuralKey === "$return") {
+            throw new ASTControl("$return", await executeAsync({
+                executeAST: targetNode.$return, sandbox, node, registry, sequential
+            }));
+        }
+
         if (structuralKey === "$null") {
-            return await resolveNullishAsync(targetNode.$null, { sandbox, node, registry });
+            return await resolveNullishAsync(targetNode.$null, { sandbox, node, registry, sequential });
         }
 
         if (structuralKey === "$await") {
-            return await astAsync({
+            return await executeAsync({
                 executeAST: targetNode.$await,
                 sandbox,
                 node,
-                registry
+                registry,
+                sequential
             });
         }
 
         if (structuralKey === "$function" || structuralKey === "$async") {
             const { callback, bind } = createASTFunction(targetNode, { sandbox, node, registry });
             if (bind === undefined) return callback;
-            const thisArg = await astAsync({ executeAST: bind, sandbox, node, registry });
+            const thisArg = await executeAsync({ executeAST: bind, sandbox, node, registry, sequential });
             return callback.bind(thisArg);
         }
 
         if (isConditionalExpression) {
-            const context = { sandbox, node, registry };
+            const context = { sandbox, node, registry, sequential };
             const selected = await selectConditionalBranchAsync({
                 definition: getIfDefinition(targetNode[structuralKey], structuralKey),
                 evaluate: (value) => resolveConditionalValueAsync(value, context),
                 exists: (value) => resolveScopedPath(value, registry, sandbox).found
             });
             return selected.found
-                ? await astAsync({ executeAST: selected.branch, ...context })
+                ? await executeAsync({ executeAST: selected.branch, ...context })
                 : undefined;
         }
 
@@ -707,7 +851,7 @@ export async function astAsync({ executeAST, sandbox, node, registry } = {}) {
                 body,
                 shouldAwait
             } = getForDefinition(targetNode.$for);
-            const source = await resolveConditionalValueAsync(sourceExpression, { sandbox, node, registry });
+            const source = await resolveConditionalValueAsync(sourceExpression, { sandbox, node, registry, sequential });
             let result;
             if (shouldAwait) {
                 const isIterable = source && (
@@ -725,12 +869,20 @@ export async function astAsync({ executeAST, sandbox, node, registry } = {}) {
                         variable,
                         value
                     });
-                    result = await astAsync({
-                        executeAST: body,
-                        sandbox: iterationSandbox,
-                        node,
-                        registry: iterationRegistry
-                    });
+                    try {
+                        result = await executeAsync({
+                            executeAST: body,
+                            sandbox: iterationSandbox,
+                            node,
+                            registry: iterationRegistry,
+                            sequential: true
+                        });
+                    } catch (control) {
+                        if (!(control instanceof ASTControl)) throw control;
+                        if (control.type === "$break") break;
+                        if (control.type === "$continue") continue;
+                        throw control;
+                    }
                 }
             } else {
                 if (!source || typeof source[Symbol.iterator] !== "function") {
@@ -744,12 +896,20 @@ export async function astAsync({ executeAST, sandbox, node, registry } = {}) {
                         variable,
                         value
                     });
-                    result = await astAsync({
-                        executeAST: body,
-                        sandbox: iterationSandbox,
-                        node,
-                        registry: iterationRegistry
-                    });
+                    try {
+                        result = await executeAsync({
+                            executeAST: body,
+                            sandbox: iterationSandbox,
+                            node,
+                            registry: iterationRegistry,
+                            sequential: true
+                        });
+                    } catch (control) {
+                        if (!(control instanceof ASTControl)) throw control;
+                        if (control.type === "$break") break;
+                        if (control.type === "$continue") continue;
+                        throw control;
+                    }
                 }
             }
             return result;
@@ -765,11 +925,12 @@ export async function astAsync({ executeAST, sandbox, node, registry } = {}) {
 
             if (opFunc !== undefined || assignmentScope) {
                 const { nestedSandbox, nestedRegistry } = createNestedScope(sandbox, registry);
-                const evaluatedParam = await astAsync({
+                const evaluatedParam = await executeAsync({
                     executeAST: targetNode[key],
                     sandbox: nestedSandbox,
                     node,
-                    registry: nestedRegistry
+                    registry: nestedRegistry,
+                    sequential
                 });
                 if (assignmentScope && typeof opFunc !== "function") {
                     dotNotationToObject({ [key]: evaluatedParam }, assignmentScope);
@@ -799,13 +960,17 @@ export async function astAsync({ executeAST, sandbox, node, registry } = {}) {
 
         const resolvedObject = {};
         for (const key of keys) {
+            if (key === "$break" || key === "$continue") {
+                throw new ASTControl(key);
+            }
             if (key === "$return") {
-                return await astAsync({
+                throw new ASTControl("$return", await executeAsync({
                     executeAST: targetNode[key],
                     sandbox,
                     node,
-                    registry
-                });
+                    registry,
+                    sequential
+                }));
             }
 
             if (key !== "$return" && key.startsWith("$")) {
@@ -814,11 +979,12 @@ export async function astAsync({ executeAST, sandbox, node, registry } = {}) {
                     typeof operator.value === "function" ||
                     operator.assignmentScope
                 ) {
-                    resolvedObject[key] = await astAsync({
+                    resolvedObject[key] = await executeAsync({
                         executeAST: { [key]: targetNode[key] },
                         sandbox,
                         node,
-                        registry
+                        registry,
+                        sequential
                     });
                     continue;
                 }
@@ -827,27 +993,27 @@ export async function astAsync({ executeAST, sandbox, node, registry } = {}) {
             let finalKey = key;
 
             if (key.startsWith("$") && !["$array", "filter", "$storage", "$database"].includes(key)) {
-                const resolvedKey = await astAsync({ executeAST: key, sandbox, node, registry });
+                const resolvedKey = await executeAsync({ executeAST: key, sandbox, node, registry, sequential });
                 if (typeof resolvedKey === "string" || typeof resolvedKey === "number") {
                     finalKey = String(resolvedKey);
                 }
             } else if (key.includes('{{') && key.includes('}}')) {
-                finalKey = await resolveInlinePlaceholdersAsync(key, { sandbox, node, registry });
+                finalKey = await resolveInlinePlaceholdersAsync(key, { sandbox, node, registry, sequential });
             }
 
             let finalValue = targetNode[key];
             if (typeof finalValue === "string") {
                 if (finalValue.startsWith("$") && !["$array", "filter", "$storage", "$database"].includes(finalValue)) {
-                    finalValue = await astAsync({ executeAST: finalValue, sandbox, node, registry });
+                    finalValue = await executeAsync({ executeAST: finalValue, sandbox, node, registry, sequential });
                 } else if (finalValue.includes('{{') && finalValue.includes('}}')) {
-                    finalValue = await resolveInlinePlaceholdersAsync(finalValue, { sandbox, node, registry });
+                    finalValue = await resolveInlinePlaceholdersAsync(finalValue, { sandbox, node, registry, sequential });
                 }
             } else if (Array.isArray(finalValue) || (typeof finalValue === "object" && finalValue !== null)) {
-                finalValue = await astAsync({ executeAST: finalValue, sandbox, node, registry });
+                finalValue = await executeAsync({ executeAST: finalValue, sandbox, node, registry, sequential });
             }
 
             if (finalKey === '$return') {
-                return finalValue;
+                throw new ASTControl("$return", finalValue);
             }
 
             resolvedObject[finalKey] = finalValue;
@@ -862,7 +1028,7 @@ export async function astAsync({ executeAST, sandbox, node, registry } = {}) {
     return targetNode;
 }
 
-function resolveInlinePlaceholdersSync(str, { sandbox, node, registry }) {
+function resolveInlinePlaceholdersSync(str, { sandbox, node, registry, sequential }) {
     let result = str;
     const regex = /\{\{\s*([\w\W]+?)\s*\}\}/g;
     let match;
@@ -870,14 +1036,14 @@ function resolveInlinePlaceholdersSync(str, { sandbox, node, registry }) {
     while ((match = regex.exec(str)) !== null) {
         const placeholder = match[0];
         const variablePath = match[1];
-        const evaluatedValue = astSync({ executeAST: variablePath, sandbox, node, registry });
+        const evaluatedValue = executeSync({ executeAST: variablePath, sandbox, node, registry, sequential });
         const replacement = typeof evaluatedValue === 'object' ? JSON.stringify(evaluatedValue) : String(evaluatedValue);
         result = result.replace(placeholder, replacement);
     }
     return result;
 }
 
-async function resolveInlinePlaceholdersAsync(str, { sandbox, node, registry }) {
+async function resolveInlinePlaceholdersAsync(str, { sandbox, node, registry, sequential }) {
     let result = str;
     const regex = /\{\{\s*([\w\W]+?)\s*\}\}/g;
     let match;
@@ -885,7 +1051,7 @@ async function resolveInlinePlaceholdersAsync(str, { sandbox, node, registry }) 
     while ((match = regex.exec(str)) !== null) {
         const placeholder = match[0];
         const variablePath = match[1];
-        const evaluatedValue = await astAsync({ executeAST: variablePath, sandbox, node, registry });
+        const evaluatedValue = await executeAsync({ executeAST: variablePath, sandbox, node, registry, sequential });
         const replacement = typeof evaluatedValue === 'object' ? JSON.stringify(evaluatedValue) : String(evaluatedValue);
         result = result.replace(placeholder, replacement);
     }
@@ -893,26 +1059,7 @@ async function resolveInlinePlaceholdersAsync(str, { sandbox, node, registry }) 
 }
 
 export async function evaluateAST({ node, executeAST, sandbox = {} } = {}) {
-    const targetNode = executeAST !== undefined ? executeAST : node;
-    
-    if (typeof targetNode === "string") {
-        const tempRegistry = sandbox instanceof Map ? sandbox : new Map(Object.entries(sandbox));
-        let resolved = await processOperatorsAsync(node || null, targetNode, [], null, [], registry);
-        return unpackTokens(resolved, tempRegistry);
-    }
-
-    const activeScope = Object.create(baseSandboxScope);
-    Object.assign(activeScope, sandbox);
-
-    if (node) {
-        activeScope.element = node;
-    }
-
-    return await astAsync({
-        executeAST: targetNode,
-        sandbox: activeScope,
-        node: node
-    });
+    return await astAsync({ node, executeAST, sandbox });
 }
 
 setASTEvaluators(astSync, astAsync);

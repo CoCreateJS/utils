@@ -166,7 +166,7 @@ export { queryData, searchData, sortData, isEqualArray, isEqualObject } from "./
  * @public
  * @environment server
  */
-export { astSync, astAsync } from "./modules/ast/index.js";
+export { astSync, astAsync } from "./modules/ast/server.js";
 /**
  *
  * @public
@@ -232,7 +232,7 @@ import { createUpdate } from "./modules/createUpdate.js";
 import { parseTextToHtml } from "./modules/parseTextToHtml.js";
 import { escapeHtml } from "./modules/escapeHtml.js";
 import { queryData, searchData, sortData, isEqualArray, isEqualObject } from "./modules/dataQuery.js";
-import { astSync, astAsync } from "./modules/ast/index.js";
+import { astSync, astAsync } from "./modules/ast/server.js";
 import { renderValue } from "./modules/renderValue.js";
 import { processOperators, processOperatorsAsync } from "./modules/ast/operators.js";
 import { HTMLScanner } from "./modules/html-scanner.js";

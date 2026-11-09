@@ -7,7 +7,7 @@ const source = fs.readFileSync(new URL('../src/modules/file/references/urlUpload
 test('URL uploader always sends successful and failed file responses through the server service', async () => {
     const sent = [];
     const context = vm.createContext({ Buffer, URL, console,
-        server: { send: data => sent.push(data), wsManager: { send() { assert.fail('Raw socket send must not be used'); } } },
+        server: { send: data => sent.push(data), socket: { send() { assert.fail('Raw socket send must not be used'); } } },
         fetch: async () => new Response(Uint8Array.from([1, 2, 3]), { headers: { 'content-type': 'image/png' } }) });
     vm.runInContext(source, context);
     const data = { file: { src: 'https://example.test/image.png' } };

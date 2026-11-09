@@ -43,6 +43,20 @@ const sharedGlobals = {
     $throw: (message) => {
         throw new Error(String(message));
     },
+    $error: function (error) {
+        const registry = this?.registry;
+        const payload = registry?.get?.("payload") ?? registry?.get?.("$payload");
+        if (!payload || typeof payload !== "object") return;
+
+        if (!Array.isArray(payload.error)) {
+            payload.error = payload.error == null ? [] : [payload.error];
+        }
+
+        if (Array.isArray(error)) payload.error.push(...error);
+        else payload.error.push(error);
+
+        return payload.error;
+    },
     $btoa: (str) => {
         if (typeof btoa === "function") return btoa(String(str));
         return Buffer.from(String(str)).toString("base64");
@@ -117,6 +131,58 @@ const sharedGlobals = {
         delay: (ms) => new Promise((resolve) => setTimeout(resolve, Number(ms) || 0))
     }
 };
+
+// Standard JavaScript and Web API roots shared by browsers and Node.
+// Getters preserve native objects and leave unavailable APIs undefined.
+const nativeGlobals = [
+    "globalThis", "Function", "Promise", "RegExp", "Map", "Set", "WeakMap", "WeakSet", "WeakRef",
+    "FinalizationRegistry", "Symbol", "BigInt", "Intl", "Reflect", "Proxy",
+    "ArrayBuffer", "SharedArrayBuffer", "DataView", "Atomics",
+    "Int8Array", "Uint8Array", "Uint8ClampedArray", "Int16Array", "Uint16Array",
+    "Int32Array", "Uint32Array", "Float16Array", "Float32Array", "Float64Array",
+    "BigInt64Array", "BigUint64Array",
+    "Error", "AggregateError", "EvalError", "RangeError", "ReferenceError",
+    "SyntaxError", "TypeError", "URIError", "DOMException",
+    "fetch", "Request", "Response", "Headers", "FormData", "Blob", "File",
+    "console", "crypto", "Crypto", "CryptoKey", "SubtleCrypto", "performance", "navigator",
+    "URL", "URLSearchParams", "URLPattern", "TextEncoder", "TextDecoder",
+    "TextEncoderStream", "TextDecoderStream",
+    "AbortController", "AbortSignal", "Event", "EventTarget", "CustomEvent",
+    "BroadcastChannel", "MessageChannel", "MessagePort", "MessageEvent", "EventSource",
+    "ReadableStream", "ReadableStreamDefaultReader", "ReadableStreamBYOBReader",
+    "ReadableStreamBYOBRequest", "ReadableByteStreamController",
+    "ReadableStreamDefaultController", "WritableStream", "WritableStreamDefaultWriter",
+    "WritableStreamDefaultController", "TransformStream", "TransformStreamDefaultController",
+    "ByteLengthQueuingStrategy", "CountQueuingStrategy", "CompressionStream",
+    "DecompressionStream", "WebAssembly", "WebSocket",
+    "setTimeout", "clearTimeout", "setInterval", "clearInterval",
+    "queueMicrotask", "structuredClone", "isNaN", "isFinite", "encodeURI", "decodeURI"
+];
+
+// Global functions keep their native global receiver when called by AST.
+const nativeGlobalFunctions = new Set([
+    "fetch", "setTimeout", "clearTimeout", "setInterval", "clearInterval",
+    "queueMicrotask", "structuredClone"
+]);
+
+for (const name of nativeGlobals) {
+    const key = `$${name}`;
+    Object.defineProperty(sharedGlobals, key, {
+        enumerable: true,
+        configurable: true,
+        get() {
+            const value = globalThis[name];
+            return typeof value === "function" && nativeGlobalFunctions.has(name)
+                ? value.bind(globalThis)
+                : value;
+        },
+        set(value) {
+            Object.defineProperty(this, key, {
+                value, writable: true, configurable: true, enumerable: true
+            });
+        }
+    });
+}
 
 export const sharedGlobalsScope = sharedGlobals;
 

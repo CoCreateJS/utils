@@ -316,6 +316,8 @@ export function safeParse(expression, registry = new Map()) {
     }
 }
 
+export const globalOperatorNames = new Set(sharedGlobalOperators.keys());
+
 export const customOperators = new Map([
 	...sharedGlobalOperators,
 	...(isBrowser ? browserGlobalOperators : []),
@@ -696,10 +698,9 @@ function resolveOperator(element, operator, args, parent, params, objectRegistry
         args = processOperators(element, args, [], operator, params, objectRegistry);
     }
 
-    // The bare `$()` evaluator only needs its AST registry. Give it a neutral
-    // receiver when there is no DOM node so server and string renderers can
-    // evaluate the same expressions without changing DOM-bound operators.
-    let targetElements = element ? [element] : operator === "$" ? [{}] : [];
+    // Environment roots and `$()` do not require a DOM receiver.
+    let targetElements = element ? [element]
+        : operator === "$" || globalOperatorNames.has(operator) ? [{}] : [];
     if (args && typeof args === "string") {
         const objMatch = args.match(/^__OBJ_(\d+)__$/);
         if (objMatch && objectRegistry.has(args)) {
