@@ -64,3 +64,39 @@ test('preserves empty filter and empty AND matching behavior', () => {
     assert.equal(searchData({ name: null }, { value: null, operator: 'and' }), true);
     assert.equal(searchData({ name: 'example' }, { value: null, operator: 'and' }), false);
 });
+
+test('evaluates AND, OR, and NOR branches with normal boolean semantics', () => {
+    const records = [
+        { name: 'Ada', team: 'red', score: 31 },
+        { name: 'Bea', team: 'blue', score: 24 },
+        { name: 'Cal', team: 'blue', score: 18 }
+    ];
+    const query = {
+        $and: [
+            { score: { $gte: 20 } },
+            { $or: [{ team: 'red' }, { name: 'Bea' }] }
+        ]
+    };
+
+    assert.deepEqual(records.filter(record => queryData(record, query)).map(record => record.name), ['Ada', 'Bea']);
+    assert.equal(queryData(records[2], { $or: [{ team: 'red' }, { name: 'Bea' }] }), false);
+    assert.equal(queryData(records[2], { $nor: [{ team: 'red' }, { name: 'Bea' }] }), true);
+    assert.equal(queryData(records[0], { $nor: [{ team: 'red' }, { name: 'Bea' }] }), false);
+});
+
+test('matches multiple nested keys and checks dotted-path existence', () => {
+    const record = { profile: { city: 'Lima', active: true } };
+
+    assert.equal(queryData(record, { profile: { city: 'Lima', active: true } }), true);
+    assert.equal(queryData(record, { profile: { city: 'Lima', active: false } }), false);
+    assert.equal(queryData(record, { 'profile.city': { $exists: true } }), true);
+    assert.equal(queryData(record, { 'profile.zip': { $exists: false } }), true);
+});
+
+test('range comparisons use native JavaScript operators without normalizing values', () => {
+    assert.equal(queryData({ value: '20' }, { value: { $gt: 10 } }), true);
+    assert.equal(queryData({ value: 20 }, { value: { $gt: '10' } }), true);
+    assert.equal(queryData({ value: 'not a number' }, { value: { $gt: 10 } }), false);
+    assert.equal(queryData({ value: '2026-01-02T00:00:00.000Z' }, { value: { $gt: '2026-01-01T00:00:00.000Z' } }), true);
+    assert.equal(queryData({ value: '2026-01-02T00:00:00.000Z' }, { value: { $gt: new Date('2026-01-01T00:00:00.000Z') } }), false);
+});
