@@ -130,7 +130,7 @@ export { resolveProperty } from "./modules/resolveProperty.js";
  * @public
  * @environment client
  */
-export { createUpdate } from "./modules/createUpdate.js";
+export { createUpdate, createUpdateChanges, mergeUpdateChanges } from "./modules/createUpdate.js";
 /**
  *
  * @public

@@ -506,3 +506,28 @@ The direct `src/modules/ast/index.js` entry provides the shared/browser scope;
 
 Server APIs execute with the Node process's permissions. Registering these roots
 provides capabilities; it does not isolate workflow execution from the host.
+
+## Query and update operator contracts
+
+The executable operator suites are `test/query-operators.test.js` and `test/createUpdate.test.js`.
+
+Query coverage includes `$eq`, `$ne`, `$not`, `$lt`, `$lte`, `$gt`, `$gte`, `$in`, `$nin`, `$all`, `$elemMatch`, `$size`, `$exists`, `$regex`/`$options`, `$type` (including aliases), `$mod`, `$where`, and `$and`/`$or`/`$nor`. Tests cover missing/null values, scalar types, arrays and objects, nested logical conditions, dot/bracket paths, and repeated regular-expression evaluation. Dotted traversal keeps actual leaf values separate: `$size` and `$type` inspect stored values, not a synthetic array of traversal results. Positive predicates can match a leaf; `$ne`, `$nin`, and `$not` exclude matching leaves across the path. Relational operators retain native JavaScript coercion.
+
+Update coverage includes `$set`, `$rename`, `$inc`, `$push`, `$each`, `$splice`, `$unset`, `$delete`, `$slice`, `$pop`, `$shift`, `$addToSet`, and `$pull`, plus flat operator keys, bracket shorthand, and global operators. `createUpdate` mutates its target, returning the target on success or `false` on invalid operations. It is not a transaction; callers requiring rollback must apply updates to a detached copy, as CoCreateDB does.
+
+CoCreate's existing array conventions are retained: plain bracket assignments insert, while `$set` replaces an array position; `$splice` inserts a value at the selected position; standalone `$each` appends/inserts multiple values; `$slice`, `$delete`, and `$unset` remove a property or selected array position; `$pop` removes the last element and `$shift` the first. `$addToSet` and `$pull` compare whole array/object values by deep equality. MongoDB-style update modifiers and query predicates inside `$pull` are not implicitly supported. Rename destinations are root-relative dot/bracket paths. Use `$set` to store a literal string that is itself a recognized operator name, such as `$pop`.
+
+Unknown update operators, unsafe prototype paths, nonnumeric increments, and array operations on non-arrays fail. Existing exported helper APIs remain available.
+
+`$addToSet` accepts `{ $each: [...] }` to add multiple distinct values in one update; a literal array without `$each` remains one set element.
+
+### Final-value update changes
+
+`createUpdateChanges(before, after)` returns a JSON-safe `$set`/`$unset` patch of
+actual differences, using dotted paths for nested objects and whole values for
+changed arrays. Unchanged keys are omitted. Reapplying the resulting patch does
+not repeat increments or insertions. `mergeUpdateChanges(previous, next)` coalesces
+resolved patches while preserving changed-and-reverted paths and parent/child
+replacement semantics. Both helpers are exported alongside `createUpdate` from
+the browser and server entries. `createUpdate` still mutates/returns the complete
+target document; storage callers keep their existing contract.

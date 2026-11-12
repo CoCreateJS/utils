@@ -62,15 +62,23 @@ function isEqualValue(value1, value2) {
 }
 
 function pathResult(data, path) {
+	// Most CRUD predicates address a direct property; avoid path parsing and
+	// recursive visitor allocation on that common path.
+	if (!path.includes(".") && !path.includes("[")) {
+		const exists = data !== null && typeof data === "object" && Object.hasOwn(data, path);
+		return { exists, values: exists ? [data[path]] : [] };
+	}
 	const keys = String(path).replace(/\[(\d+)\]/g, ".$1").split(".").filter(Boolean);
 	const visit = (value, index) => {
 		if (index === keys.length) return { exists: true, values: [value] };
 		if (Array.isArray(value) && !/^\d+$/.test(keys[index])) {
-			const results = value.map(item => visit(item, index));
-			return {
-				exists: results.some(result => result.exists),
-				values: results.flatMap(result => result.values)
-			};
+			const result = { exists: false, values: [] };
+			for (const item of value) {
+				const child = visit(item, index);
+				result.exists ||= child.exists;
+				for (const leaf of child.values) result.values.push(leaf);
+			}
+			return result;
 		}
 		if (value === null || typeof value !== "object" || !Object.hasOwn(value, keys[index]))
 			return { exists: false, values: [] };
@@ -190,6 +198,34 @@ function matchFieldValue(value, exists, condition, document, key) {
 	return true;
 }
 
+// Dotted traversal can reach several actual values. Keep those values
+// separate: their container is not a stored array for $type/$size/$all.
+function matchPathResult(result, condition, document, key) {
+	if (result.values.length <= 1)
+		return matchFieldValue(result.values[0], result.exists, condition, document, key);
+
+	const operators = condition && typeof condition === "object" && !Array.isArray(condition)
+		? Object.keys(condition).filter(name => name.startsWith("$")) : [];
+	if (!operators.length)
+		return result.values.some(value => matchFieldValue(value, true, condition, document, key));
+
+	for (const operator of operators) {
+		if (operator === "$options") continue;
+		const expected = condition[operator];
+		if (operator === "$not") {
+			if (matchPathResult(result, expected, document, key)) return false;
+			continue;
+		}
+		const negative = operator === "$ne" || operator === "$nin";
+		const positive = operator === "$ne" ? "$eq" : operator === "$nin" ? "$in" : operator;
+		const predicate = { [positive]: expected };
+		if (operator === "$regex" && condition.$options) predicate.$options = condition.$options;
+		const matched = result.values.some(value => matchFieldValue(value, true, predicate, document, key));
+		if (negative ? matched : !matched) return false;
+	}
+	return true;
+}
+
 export function queryData(data, query) {
 	if (query === undefined || query === null) return true;
 	if (Array.isArray(query)) return query.every(condition => queryData(data, condition));
@@ -208,7 +244,7 @@ export function queryData(data, query) {
 			return false;
 		} else {
 			const result = pathResult(data, key);
-			if (!matchFieldValue(result.values.length > 1 ? result.values : result.values[0], result.exists, condition, data, key)) return false;
+			if (!matchPathResult(result, condition, data, key)) return false;
 		}
 	}
 	return true;
