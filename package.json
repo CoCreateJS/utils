@@ -31,7 +31,7 @@
   },
   "homepage": "https://CoCreateJS.com/docs/utils",
   "funding": {
-    "type": "GitHub Sponsors ❤",
+    "type": "GitHub Sponsors \u2764",
     "url": "https://github.com/sponsors/CoCreateJS"
   },
   "type": "module",
@@ -57,6 +57,7 @@
     "@cocreate/webpack": "^2.0.1"
   },
   "dependencies": {
-    "entities": "^6.0.1"
+    "entities": "^6.0.1",
+    "@cocreate/kms": "^1.1.0"
   }
 }

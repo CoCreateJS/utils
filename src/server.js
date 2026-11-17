@@ -166,7 +166,6 @@ export { queryData, searchData, sortData, isEqualArray, isEqualObject } from "./
  * @public
  * @environment server
  */
-export { astSync, astAsync } from "./modules/ast/server.js";
 /**
  *
  * @public
@@ -183,7 +182,6 @@ export { renderValue } from "./modules/renderValue.js";
  * @public
  * @environment server
  */
-export { processOperators, processOperatorsAsync } from "./modules/ast/operators.js";
 /**
  *
  * @public
@@ -211,7 +209,7 @@ export { getAttributes, getAttributeNames, setAttributeNames } from "./modules/a
  * @public
  * @environment server
  */
-export { security } from './modules/security.js';
+export { kms } from '@cocreate/kms/server';
 
 import { cloudProviders } from "./modules/cloudProviders.js";
 import { getClientInfo } from "./modules/getClientInfo.js";
@@ -232,12 +230,10 @@ import { createUpdate } from "./modules/createUpdate.js";
 import { parseTextToHtml } from "./modules/parseTextToHtml.js";
 import { escapeHtml } from "./modules/escapeHtml.js";
 import { queryData, searchData, sortData, isEqualArray, isEqualObject } from "./modules/dataQuery.js";
-import { astSync, astAsync } from "./modules/ast/server.js";
 import { renderValue } from "./modules/renderValue.js";
-import { processOperators, processOperatorsAsync } from "./modules/ast/operators.js";
 import { HTMLScanner } from "./modules/html-scanner.js";
 import { getAttributes, getAttributeNames, setAttributeNames } from "./modules/attributes.js";
-import security from './modules/security.js';
+import { kms } from '@cocreate/kms/server';
 
 
 import * as fileUtils from "./modules/file/index.js";
@@ -270,13 +266,9 @@ const utils = {
     isEqualArray, 
     isEqualObject,
     createUpdate,
-    astSync,
-    astAsync,
     renderValue,
-    processOperators,
-    processOperatorsAsync,
     HTMLScanner,
-    security,
+    kms,
     getAttributes,
     getAttributeNames,
     setAttributeNames

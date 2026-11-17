@@ -217,7 +217,6 @@ export { getAttributes, getAttributeNames, setAttributeNames } from "./modules/a
  * @public
  * @environment client
  */
-export { astSync, astAsync } from "./modules/ast/index.js";
 /**
  *
  * @public
@@ -234,7 +233,6 @@ export { renderValue } from "./modules/renderValue.js";
  * @public
  * @environment client
  */
-export { processOperators, processOperatorsAsync } from "./modules/ast/operators.js";
 /**
  *
  * @public
@@ -266,9 +264,7 @@ import { cssPath } from "./modules/cssPath.js";
 import { queryElements, queryElementsAll, checkMediaQueries } from "./modules/queryElements.js";
 import { queryData, searchData, sortData, isEqualArray, isEqualObject } from "./modules/dataQuery.js";
 import { getAttributes, getAttributeNames, setAttributeNames } from "./modules/attributes.js";
-import { astSync, astAsync } from "./modules/ast/index.js";
 import { renderValue } from "./modules/renderValue.js";
-import { processOperators, processOperatorsAsync } from "./modules/ast/operators.js";
 import { hasSelection } from "./modules/selection.js";
 
 import * as fileUtils from "./modules/file/index.js";
@@ -310,11 +306,7 @@ const utils = {
     getAttributes,
     setAttributeNames,
     getAttributeNames,
-    astSync,
-    astAsync,
     renderValue,
-    processOperators,
-    processOperatorsAsync,
     hasSelection
 };
 

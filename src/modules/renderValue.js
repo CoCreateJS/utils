@@ -1,4 +1,3 @@
-import { astAsync } from "./ast/index.js";
 import { getValueFromObject } from "./getValueFromObject.js";
 
 /**
@@ -28,6 +27,7 @@ async function renderValue(
     resolveValue,
     options = {}
 ) {
+    const { astAsync } = options;
     data = data && typeof data === "object" ? data : {};
     let output = placeholder;
     const contextElement = node && node.nodeType !== 1
