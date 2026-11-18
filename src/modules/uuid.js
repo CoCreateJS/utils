@@ -19,49 +19,69 @@
 const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';
 
 /**
- * Generates an RFC 4122 compliant UUID Version 4 (Universally Unique Identifier).
+ * Generates an RFC 9562 compliant UUID Version 7 (Universally Unique Identifier).
  * 
- * By default, this returns a standard 36-character string. If a custom length 
- * less than 36 is provided, it returns a truncated unique identifier (UID).
+ * UUIDv7 stores the Unix timestamp in its most significant 48 bits, so standard
+ * UUID strings sort chronologically at millisecond resolution.
  *
- * @param {number} [length=36] - The desired length of the returned identifier (maximum 36).
- * @returns {string} A standard UUIDv4 or a truncated custom-length unique identifier.
+ * @returns {string} A standard 36-character UUIDv7.
  * 
  * @example
- * // Returns standard UUIDv4: "f81d4fae-7dec-11d0-a765-00a0c91e6bf6"
+ * // Returns standard UUIDv7: "0194f6c0-7c00-7abc-8def-0123456789ab"
  * uuid(); 
  * 
- * @example
- * // Returns truncated unique identifier: "f81d4fae"
- * uuid(8); 
  */
-export function uuid(length = 36) {
-    const pattern = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx";
-    
-    // Cap the length to the maximum standard UUID size (36 characters)
-    const targetLength = Math.min(length, 36);
-
-    // Cryptographically secure random byte generation across Browser and Node environments
-    const randomBytes = new Uint8Array(36);
+export function uuid() {
+    // UUIDv7: 48-bit Unix timestamp, version 7, and 74 random bits.
+    const bytes = new Uint8Array(16);
     const cryptoObj = isBrowser ? (window.crypto || window.msCrypto) : globalThis.crypto;
     
     if (cryptoObj && cryptoObj.getRandomValues) {
-        cryptoObj.getRandomValues(randomBytes);
+        cryptoObj.getRandomValues(bytes);
     } else {
-        // Fallback if environment crypto API is unavailable
-        for (let i = 0; i < 36; i++) {
-            randomBytes[i] = Math.floor(Math.random() * 256);
+        // Fallback for environments without a Web Crypto API.
+        for (let i = 0; i < bytes.length; i++) {
+            bytes[i] = Math.floor(Math.random() * 256);
         }
     }
 
-    let byteIndex = 0;
-    const fullUuid = pattern.replace(/[xy]/g, (char) => {
-        const randomValue = randomBytes[byteIndex++] % 16;
-        const mappedValue = char === "x" ? randomValue : (randomValue & 0x3) | 0x8;
-        return mappedValue.toString(16);
-    });
+    let timestamp = Date.now();
+    for (let i = 5; i >= 0; i--) {
+        bytes[i] = timestamp & 0xff;
+        timestamp = Math.floor(timestamp / 256);
+    }
 
-    return fullUuid.substring(0, targetLength);
+    bytes[6] = (bytes[6] & 0x0f) | 0x70;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+    const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+    const fullUuid = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+
+    return fullUuid;
+}
+
+/**
+ * Generates a random hexadecimal unique identifier.
+ *
+ * @param {number} [length=8] - The desired identifier length (maximum 36).
+ * @returns {string} A random hexadecimal identifier.
+ */
+export function uid(length = 8) {
+    const targetLength = Math.max(0, Math.min(Math.floor(Number(length) || 0), 36));
+    const bytes = new Uint8Array(Math.ceil(targetLength / 2));
+    const cryptoObj = isBrowser ? (window.crypto || window.msCrypto) : globalThis.crypto;
+
+    if (cryptoObj && cryptoObj.getRandomValues) {
+        cryptoObj.getRandomValues(bytes);
+    } else {
+        for (let i = 0; i < bytes.length; i++) {
+            bytes[i] = Math.floor(Math.random() * 256);
+        }
+    }
+
+    return Array.from(bytes, byte => byte.toString(16).padStart(2, "0"))
+        .join("")
+        .substring(0, targetLength);
 }
 
 export default uuid;

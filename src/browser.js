@@ -66,6 +66,7 @@ export { ObjectId } from "./modules/ObjectId.js";
  * @environment client
  */
 export { uuid } from "./modules/uuid.js";
+export { uid } from "./modules/uuid.js";
 /**
  *
  * @public
