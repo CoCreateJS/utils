@@ -1,7 +1,3 @@
-import { getValueFromObject } from "./getValueFromObject.js";
-
-const MISSING = Symbol("missing");
-
 // Equality
 
 export function isEqualArray(arr1, arr2) {
@@ -60,543 +56,281 @@ export function isEqualObject(obj1, obj2) {
 function isEqualValue(value1, value2) {
     if (Object.is(value1, value2)) return true;
 
-    if (Array.isArray(value1) || Array.isArray(value2)) {
-        return isEqualArray(value1, value2);
-    }
+    if (value1 === null || value2 === null ||
+        typeof value1 !== "object" || typeof value2 !== "object") return false;
 
-    if (
-        value1 &&
-        value2 &&
-        typeof value1 === "object" &&
-        typeof value2 === "object"
-    ) {
-        return isEqualObject(value1, value2);
-    }
-
-    return false;
+    return Array.isArray(value1) && Array.isArray(value2)
+        ? isEqualArray(value1, value2)
+        : isEqualObject(value1, value2);
 }
 
-// Property resolution
+// Resolve one explicit path. Undefined is also the value of a missing field.
+function queryValue(data, path) {
+    if (!path.includes(".") && !path.includes("[")) {
+        return data !== null && typeof data === "object" && Object.hasOwn(data, path)
+            ? data[path] : undefined;
+    }
 
-function resolveValue(data, key) {
-    if (!key.includes(".") && !key.includes("[")) {
-        if (data === null || data === undefined ||
-            (typeof data !== "object" && typeof data !== "function") ||
-            !Object.hasOwn(data, key) || data[key] === undefined) return MISSING;
-        return data[key];
-    }
-    const path = key.replace(/\[(\d+)\]/g, ".$1").replace(/^\./, "").split(".");
-    for (const part of path) {
-        if (data === null || data === undefined ||
-            (typeof data !== "object" && typeof data !== "function") ||
-            !Object.hasOwn(data, part)) return MISSING;
-        data = data[part];
-    }
-    return data === undefined ? MISSING : data;
+    return readQueryPath(data, queryPathKeys(path));
 }
 
-function preparePath(key) {
-    if (!key.includes(".") && !key.includes("[")) {
-        return data => {
-            if (
-                data === null ||
-                data === undefined ||
-                (
-                    typeof data !== "object" &&
-                    typeof data !== "function"
-                )
-            ) return MISSING;
+function queryPathKeys(path) {
+    return (path.includes("[") ? path.replace(/\[(\d+)\]/g, ".$1") : path).split(".");
+}
 
-            return Object.hasOwn(data, key) && data[key] !== undefined ? data[key] : MISSING;
-        };
+function readQueryPath(data, keys) {
+    for (const key of keys) {
+        if (!key) continue;
+        if (data === null || typeof data !== "object" || !Object.hasOwn(data, key) ||
+            (Array.isArray(data) && !/^\d+$/.test(key))) return undefined;
+        data = data[key];
     }
+    return data;
+}
 
-    const path = key
-        .replace(/\[(\d+)\]/g, ".$1")
-        .replace(/^\./, "")
-        .split(".");
+function queryValueType(value) {
+    if (value === null) return "null";
+    if (Array.isArray(value)) return "array";
+    if (value instanceof Date) return "date";
+    return typeof value;
+}
 
-    return data => {
-        for (let i = 0; i < path.length; i++) {
-            if (
-                data === null ||
-                data === undefined ||
-                (
-                    typeof data !== "object" &&
-                    typeof data !== "function"
-                ) ||
-                !Object.hasOwn(data, path[i])
-            ) return MISSING;
+const queryTypeAliases = { bool: "boolean", int: "number", long: "number", double: "number", decimal: "number" };
 
-            data = data[path[i]];
+function matchQueryFieldValue(value, condition, document) {
+    if (condition === null || typeof condition !== "object" || condition instanceof Date || condition instanceof RegExp)
+        return isEqualValue(value, condition);
+    if (Array.isArray(condition)) return Array.isArray(value) && isEqualArray(value, condition);
 
-            if (data === undefined) return MISSING;
+    const exists = value !== undefined;
+    const keys = Object.keys(condition);
+    if (!keys.length) return exists && value !== null && typeof value === "object";
+
+    for (const operator of keys) {
+        const expected = condition[operator];
+        if (operator === "$options") continue;
+        if (!operator.startsWith("$")) {
+            if (value === null || typeof value !== "object" ||
+                !matchQueryFieldValue(queryValue(value, operator), expected, value)) return false;
+            continue;
         }
-
-    return data === undefined ? MISSING : data;
-    };
-}
-
-// Membership
-
-function includesValue(dataValue, queryValue) {
-    if (Array.isArray(dataValue)) {
-        for (let i = 0; i < dataValue.length; i++) {
-            if (isEqualValue(dataValue[i], queryValue)) return true;
-        }
-
-        return false;
+        if (!matchQueryOperator(value, operator, expected, operator === "$regex" ? condition.$options : undefined, document)) return false;
     }
-
-    return typeof dataValue === "string" && typeof queryValue === "string" &&
-        dataValue.includes(queryValue);
-}
-
-// Operator evaluation
-
-function matchOperator(data, value, operator, query, prepared) {
-    let queryValue = query[operator];
-
-    if (operator === "$exists") {
-        return queryValue
-            ? value !== MISSING
-            : value === MISSING;
-    }
-
-    if (operator === "$ne") return value === MISSING || !isEqualValue(value, queryValue);
-    if (operator === "$nin") return value === MISSING ||
-        !(Array.isArray(queryValue) ? queryValue : [queryValue])
-            .some(choice => isEqualValue(value, choice));
-    if (operator === "$not") return prepared?.match
-        ? !prepared.match(value)
-        : !matchValue(data, value, queryValue);
-    if (value === MISSING) return false;
-
-    switch (operator) {
-        case "$eq":
-            return isEqualValue(value, queryValue);
-
-        case "$gt":
-            return comparable(value, queryValue) && value > queryValue;
-
-        case "$gte":
-            return comparable(value, queryValue) && value >= queryValue;
-
-        case "$lt":
-            return comparable(value, queryValue) && value < queryValue;
-
-        case "$lte":
-            return comparable(value, queryValue) && value <= queryValue;
-
-        case "$in":
-            return (Array.isArray(queryValue) ? queryValue : [queryValue])
-                .some(choice => isEqualValue(value, choice));
-
-        case "$includes":
-            return includesValue(value, queryValue);
-
-        case "$all":
-            if (
-                !Array.isArray(value) ||
-                !Array.isArray(queryValue)
-            ) return false;
-
-            for (let i = 0; i < queryValue.length; i++) {
-                if (!value.some(item => isEqualValue(item, queryValue[i]))) return false;
-            }
-
-            return true;
-
-        case "$elemMatch":
-            if (!Array.isArray(value)) return false;
-
-            const match = prepared?.match ?? compileValue(queryValue);
-            for (let i = 0; i < value.length; i++) {
-                if (match(value[i])) return true;
-            }
-
-            return false;
-
-        case "$size":
-            return Array.isArray(value) &&
-                value.length === queryValue;
-
-        case "$regex": {
-            const regex = prepared?.regex ??
-                new RegExp(queryValue, query.$options || "");
-            return (Array.isArray(value) ? value : [value]).some(item => {
-                if (typeof item !== "string") return false;
-                regex.lastIndex = 0;
-                return regex.test(item);
-            });
-        }
-
-        case "$type": {
-            const aliases = { bool: "boolean", int: "number", long: "number", double: "number", decimal: "number" };
-            const actual = Array.isArray(value) ? "array" : value === null ? "null" : typeof value;
-            return (Array.isArray(queryValue) ? queryValue : [queryValue])
-                .some(type => (aliases[type] || type) === actual);
-        }
-
-        case "$mod":
-            return Array.isArray(queryValue) && queryValue.length === 2 && queryValue[0] !== 0 &&
-                (Array.isArray(value) ? value : [value]).some(item =>
-                    typeof item === "number" && item % queryValue[0] === queryValue[1]);
-
-        case "$where":
-            return typeof queryValue === "function" && Boolean(queryValue.call(data));
-
-        default:
-            return false;
-    }
-}
-
-// Value evaluation
-
-function comparable(value, expected) {
-    const kind = typeof value;
-    if (kind !== typeof expected) return false;
-    if (kind === "number") return Number.isFinite(value) && Number.isFinite(expected);
-    return kind === "string" || kind === "boolean" || kind === "bigint";
-}
-
-function matchValue(data, value, query) {
-    if (query === null || typeof query !== "object") {
-        return value !== MISSING && isEqualValue(value, query);
-    }
-
-    if (Array.isArray(query)) {
-        return isEqualArray(value, query);
-    }
-
-    const keys = Object.keys(query);
-
-    if (!keys.length) return value !== MISSING;
-
-    for (let i = 0; i < keys.length; i++) {
-        const key = keys[i];
-
-        if (key === "$options") continue;
-
-        if (key.startsWith("$")) {
-            if (!matchOperator(data, value, key, query)) {
-                return false;
-            }
-        } else {
-            if (
-                value === MISSING ||
-                value === null ||
-                typeof value !== "object"
-            ) return false;
-
-            if (
-                !matchValue(
-                    value,
-                    resolveValue(value, key),
-                    query[key]
-                )
-            ) return false;
-        }
-    }
-
     return true;
+}
+
+function createQueryRegex(expected, options) {
+    return expected instanceof RegExp
+        ? new RegExp(expected.source, expected.flags)
+        : new RegExp(expected, options || "");
+}
+
+function matchesRegex(value, expression) {
+    const matches = item => {
+        if (typeof item !== "string") return false;
+        expression.lastIndex = 0;
+        return expression.test(item);
+    };
+    return Array.isArray(value) ? value.some(matches) : matches(value);
+}
+
+function matchQueryOperator(value, operator, expected, options, document) {
+    switch (operator) {
+        case "$eq": return isEqualValue(value, expected);
+        case "$ne": return !isEqualValue(value, expected);
+        case "$not": return !matchQueryFieldValue(value, expected, document);
+        case "$lt": return value < expected;
+        case "$lte": return value <= expected;
+        case "$gt": return value > expected;
+        case "$gte": return value >= expected;
+        case "$in": case "$nin": {
+            const choices = Array.isArray(expected) ? expected : [expected];
+            const matched = Array.isArray(value)
+                ? value.some(item => choices.includes(item))
+                : choices.includes(value);
+            return operator === "$in" ? matched : !matched;
+        }
+        case "$includes":
+            return (Array.isArray(value) || typeof value === "string") && value.includes(expected);
+        case "$all":
+            return Array.isArray(value) && Array.isArray(expected) &&
+                expected.every(item => value.some(entry => isEqualValue(entry, item)));
+        case "$elemMatch":
+            return Array.isArray(value) && value.some(item => {
+                if (expected && typeof expected === "object" &&
+                    ["$and", "$or", "$nor"].some(op => Object.hasOwn(expected, op)))
+                    return queryData(item, expected);
+                return matchQueryFieldValue(item, expected, item);
+            });
+        case "$size": return Array.isArray(value) && value.length === expected;
+        case "$exists": return Boolean(expected) === (value !== undefined);
+        case "$regex": return matchesRegex(value, createQueryRegex(expected, options));
+        case "$type": {
+            const actual = queryValueType(value);
+            const expectedTypes = Array.isArray(expected) ? expected : [expected];
+            return value !== undefined && expectedTypes.some(type => (queryTypeAliases[type] || type) === actual);
+        }
+        case "$mod":
+            return value !== undefined && Array.isArray(expected) && expected.length === 2 && expected[0] !== 0 &&
+                (Array.isArray(value)
+                    ? value.some(item => typeof item === "number" && item % expected[0] === expected[1])
+                    : typeof value === "number" && value % expected[0] === expected[1]);
+        case "$where": return typeof expected === "function" && Boolean(expected.call(document));
+        default: return false;
+    }
 }
 
 // Main query entry
-
 export function queryData(data, query) {
-    if (!query) return true;
+    if (query === undefined || query === null) return true;
+    if (Array.isArray(query)) return query.every(condition => queryData(data, condition));
+    if (typeof query !== "object") return false;
 
-    const keys = Object.keys(query);
-
-    for (let i = 0; i < keys.length; i++) {
-        const key = keys[i];
-        const value = query[key];
-
-        switch (key) {
-            case "$where":
-                if (typeof value !== "function" || !value.call(data)) return false;
-                break;
-
-            case "$and":
-                if (!Array.isArray(value)) return false;
-                for (let j = 0; j < value.length; j++) {
-                    if (!queryData(data, value[j])) return false;
-                }
-                break;
-
-            case "$or": {
-                if (!Array.isArray(value)) return false;
-                let matched = false;
-
-                for (let j = 0; j < value.length; j++) {
-                    if (queryData(data, value[j])) {
-                        matched = true;
-                        break;
-                    }
-                }
-
-                if (!matched) return false;
-                break;
-            }
-
-            case "$nor":
-                if (!Array.isArray(value)) return false;
-                for (let j = 0; j < value.length; j++) {
-                    if (queryData(data, value[j])) return false;
-                }
-                break;
-
-            default:
-                if (
-                    !matchValue(
-                        data,
-                        resolveValue(data, key),
-                        value
-                    )
-                ) return false;
+    for (const key of Object.keys(query)) {
+        const condition = query[key];
+        if (key === "$and") {
+            if (!Array.isArray(condition) || !condition.every(part => queryData(data, part))) return false;
+        } else if (key === "$or") {
+            if (!Array.isArray(condition) || !condition.some(part => queryData(data, part))) return false;
+        } else if (key === "$nor") {
+            if (!Array.isArray(condition) || condition.some(part => queryData(data, part))) return false;
+        } else if (key === "$where") {
+            if (typeof condition !== "function" || !condition.call(data)) return false;
+        } else if (key.startsWith("$")) {
+            return false;
+        } else {
+            if (!matchQueryFieldValue(queryValue(data, key), condition, data)) return false;
         }
     }
-
     return true;
 }
 
-// Prepared operator evaluation
-
-function prepareOperator(operator, query) {
-    const queryValue = query[operator];
-    const prepared = {};
-
-    switch (operator) {
-        case "$in":
-        case "$nin":
-            break;
-
-        case "$regex":
-            prepared.regex = new RegExp(
-                queryValue,
-                query.$options || ""
-            );
-            break;
-
-        case "$elemMatch":
-            prepared.match = compileValue(queryValue);
-            break;
-
-        case "$not":
-            prepared.match = compileValue(queryValue);
-            break;
+// Prepare a reusable predicate using the same operators as queryData.
+function prepareQueryPath(key) {
+    if (!key.includes(".") && !key.includes("[")) {
+        return data => data !== null && typeof data === "object" && Object.hasOwn(data, key)
+            ? data[key] : undefined;
     }
-
-    return value =>
-        matchOperator(
-            undefined,
-            value,
-            operator,
-            query,
-            prepared
-        );
+    const keys = queryPathKeys(key);
+    return data => readQueryPath(data, keys);
 }
 
-function compileValue(query) {
-    if (query === null || typeof query !== "object") {
-        return value => {
-            return value !== MISSING && isEqualValue(value, query);
-        };
-    }
-
-    if (Array.isArray(query)) {
-        return value => isEqualArray(value, query);
-    }
-
-    const keys = Object.keys(query);
-
-    if (!keys.length) {
-        return value => value !== MISSING;
-    }
-
-    const conditions = [];
-
-    for (let i = 0; i < keys.length; i++) {
-        const key = keys[i];
-
-        if (key === "$options") continue;
-
-        if (key.startsWith("$")) {
-            conditions.push(prepareOperator(key, query));
-        } else {
-            const resolve = preparePath(key);
-            const match = compileValue(query[key]);
-
-            conditions.push(value => {
-                if (
-                    value === MISSING ||
-                    value === null ||
-                    typeof value !== "object"
-                ) return false;
-
-                return match(resolve(value));
-            });
-        }
-    }
-
+function allConditions(conditions) {
     if (conditions.length === 1) return conditions[0];
-
-    return value => {
-        for (let i = 0; i < conditions.length; i++) {
-            if (!conditions[i](value)) return false;
+    return (value, document) => {
+        for (const matches of conditions) {
+            if (!matches(value, document)) return false;
         }
-
         return true;
     };
 }
 
-// Prepared query entry
+function compileField(condition) {
+    if (condition === null || typeof condition !== "object" || condition instanceof Date || condition instanceof RegExp)
+        return value => isEqualValue(value, condition);
+    if (Array.isArray(condition)) return value => Array.isArray(value) && isEqualArray(value, condition);
+
+    const keys = Object.keys(condition);
+    if (!keys.length) return value => value !== null && typeof value === "object";
+    const conditions = [];
+    for (const operator of keys) {
+        const expected = condition[operator];
+        if (operator === "$options") continue;
+        if (operator === "$regex") {
+            const options = condition.$options;
+            let expression;
+            conditions.push(value => matchesRegex(value, expression ??= createQueryRegex(expected, options)));
+        } else if (!operator.startsWith("$")) {
+            const read = prepareQueryPath(operator);
+            const matches = compileField(expected);
+            conditions.push(value => value !== null && typeof value === "object" && matches(read(value), value));
+        } else {
+            conditions.push((value, document) => matchQueryOperator(value, operator, expected, undefined, document));
+        }
+    }
+    return allConditions(conditions);
+}
 
 export function compileQuery(query) {
-    if (!query) return () => true;
+    if (query == null) return () => true;
+    if (Array.isArray(query)) return allConditions(query.map(compileQuery).filter(Boolean));
+    if (typeof query !== "object") return () => false;
 
-    const keys = Object.keys(query);
     const conditions = [];
-
-    for (let i = 0; i < keys.length; i++) {
-        const key = keys[i];
-        const value = query[key];
-
-        if (
-            key === "$and" ||
-            key === "$or" ||
-            key === "$nor"
-        ) {
-            const matches = [];
-
-            for (let j = 0; j < value.length; j++) {
-                matches.push(compileQuery(value[j]));
+    for (const key of Object.keys(query)) {
+        const condition = query[key];
+        if (key === "$and" || key === "$or" || key === "$nor") {
+            if (!Array.isArray(condition)) {
+                conditions.push(() => false);
+                continue;
             }
-
-            if (key === "$and") {
-                conditions.push(data => {
-                    for (let j = 0; j < matches.length; j++) {
-                        if (!matches[j](data)) return false;
-                    }
-
-                    return true;
-                });
-            } else if (key === "$or") {
-                conditions.push(data => {
-                    for (let j = 0; j < matches.length; j++) {
-                        if (matches[j](data)) return true;
-                    }
-
-                    return false;
-                });
-            } else {
-                conditions.push(data => {
-                    for (let j = 0; j < matches.length; j++) {
-                        if (matches[j](data)) return false;
-                    }
-
-                    return true;
-                });
-            }
+            const predicates = condition.map(compileQuery);
+            if (key === "$and") conditions.push(allConditions(predicates.filter(Boolean)));
+            if (key === "$or") conditions.push(data => predicates.some(matches => matches(data)));
+            if (key === "$nor") conditions.push(data => !predicates.some(matches => matches(data)));
+        } else if (key === "$where") {
+            conditions.push(data => typeof condition === "function" && Boolean(condition.call(data)));
+        } else if (key.startsWith("$")) {
+            conditions.push(() => false);
         } else {
-            const resolve = preparePath(key);
-            const match = compileValue(value);
-
-            conditions.push(data => match(resolve(data)));
+            const read = prepareQueryPath(key);
+            const matches = compileField(condition);
+            conditions.push(data => matches(read(data), data));
         }
     }
-
-    if (conditions.length === 1) return conditions[0];
-
-    return data => {
-        for (let i = 0; i < conditions.length; i++) {
-            if (!conditions[i](data)) return false;
-        }
-
-        return true;
-    };
+    return allConditions(conditions);
 }
 
 // Search
 
-export function searchData(data, search) {
-    if (!search) return true;
-    if (!Array.isArray(search)) search = [search];
+function searchTerm(value, caseSensitive) {
+    const text = String(value ?? "");
+    return caseSensitive ? text : text.toLowerCase();
+}
 
-    for (let i = 0; i < search.length; i++) {
-        let searchValue = search[i].value;
+function searchableText(value, caseSensitive) {
+    let text;
+    if (value == null) text = "";
+    else if (typeof value === "object") text = JSON.stringify(value) || "";
+    else text = typeof value === "string" ? value : value.toString();
+    return caseSensitive ? text : text.toLowerCase();
+}
 
-        if (!Array.isArray(searchValue)) {
-            searchValue = [searchValue];
+// A clause can match, stop with false, or defer to subsequent clauses.
+function searchClause(data, clause) {
+    const { value, caseSensitive: sensitivity, operator } = clause;
+    const caseSensitive = sensitivity === true || sensitivity === "true";
+    const and = operator == "and";
+
+    if (!Array.isArray(value) || value.length === 1 && Object.hasOwn(value, 0)) {
+        const term = searchTerm(Array.isArray(value) ? value[0] : value, caseSensitive);
+        for (const key in data) {
+            const text = searchableText(data[key], caseSensitive);
+            if (and) return term === "" && operator === "and" ? text === "" : text.includes(term);
+            if (text.includes(term)) return true;
         }
-
-        const caseSensitive =
-            search[i].caseSensitive === true ||
-            search[i].caseSensitive === "true";
-
-        searchValue = searchValue.map(value => {
-            const text = String(value ?? "");
-
-            return caseSensitive
-                ? text
-                : text.toLowerCase();
-        });
-
-        for (let key in data) {
-            let value = data[key];
-            let status = false;
-
-            if (value === null || value === undefined) {
-                value = "";
-            }
-
-            switch (typeof value) {
-                case "number":
-                case "boolean":
-                case "bigint":
-                case "symbol":
-                    value = value.toString();
-                    break;
-
-                case "object":
-                    value = JSON.stringify(value) || "";
-                    break;
-
-                case "function":
-                    value = value.toString();
-                    break;
-            }
-
-            if (!caseSensitive) value = value.toLowerCase();
-
-            for (let j = 0; j < searchValue.length; j++) {
-                const searchString = searchValue[j];
-
-                if (
-                    searchString === "" &&
-                    search[i].operator === "and"
-                ) {
-                    if (value !== "") return false;
-                }
-
-                if (value.indexOf(searchString) > -1) {
-                    status = true;
-                }
-
-                if (status) return true;
-                else if (search[i].operator == "and") {
-                    return false;
-                }
-            }
-        }
-
-        if (
-            searchValue.some(value => value.length > 0) &&
-            search[i].operator === "or"
-        ) return false;
+        return operator === "or" && term.length ? false : undefined;
     }
 
+    const terms = value.map(term => searchTerm(term, caseSensitive));
+    for (const key in data) {
+        const text = searchableText(data[key], caseSensitive);
+        for (const term of terms) {
+            if (and) return term === "" && operator === "and" ? text === "" : text.includes(term);
+            if (text.includes(term)) return true;
+        }
+    }
+    return operator === "or" && terms.some(term => term.length > 0) ? false : undefined;
+}
+
+export function searchData(data, search) {
+    if (!search) return true;
+    if (!Array.isArray(search)) return searchClause(data, search) ?? true;
+
+    for (const clause of search) {
+        const result = searchClause(data, clause);
+        if (result !== undefined) return result;
+    }
     return true;
 }
 
@@ -686,29 +420,34 @@ function compareMongoObjects(a, b) {
     return Math.sign(aEntries.length - bEntries.length);
 }
 
-function getArraySortValue(value, direction) {
+function getArraySortValue(value, direction, cache) {
     if (!value.length) return value;
 
-    const sorted = [...value].sort(compareMongoValues);
+    if (cache?.has(value)) return cache.get(value);
 
-    return direction === "desc"
-        ? sorted[sorted.length - 1]
-        : sorted[0];
+    const sorted = [...value].sort(compareMongoValues);
+    const result = direction === "desc" ? sorted[sorted.length - 1] : sorted[0];
+    cache?.set(value, result);
+    return result;
 }
 
-function compareMongoValues(a, b, direction = "asc") {
+function compareMongoValues(a, b, direction = "asc", arrayKeys) {
     if (Array.isArray(a)) {
-        a = getArraySortValue(a, direction);
+        a = getArraySortValue(a, direction, arrayKeys);
     }
 
     if (Array.isArray(b)) {
-        b = getArraySortValue(b, direction);
+        b = getArraySortValue(b, direction, arrayKeys);
     }
 
     if (
         Object.is(a, b) ||
         (a == null && b == null)
     ) return 0;
+
+    const kind = typeof a;
+    if ((kind === "number" || kind === "string" || kind === "bigint") && kind === typeof b)
+        return a < b ? -1 : a > b ? 1 : 0;
 
     const typeComparison =
         getMongoTypeOrder(a) - getMongoTypeOrder(b);
@@ -748,32 +487,40 @@ function compareMongoValues(a, b, direction = "asc") {
     return compareStrings(a, b);
 }
 
-export function sortData(data, sort) {
-    return data.sort((a, b) => {
-        for (let i = 0; i < sort.length; i++) {
-            const key = sort[i].key;
+function sortValueReader(key) {
+    if (typeof key !== "string" || !key) return () => undefined;
 
-            const direction =
-                sort[i].direction === "desc"
-                    ? "desc"
-                    : "asc";
-
-            const aValue = getValueFromObject(a, key);
-            const bValue = getValueFromObject(b, key);
-
-            const comparison = compareMongoValues(
-                aValue,
-                bValue,
-                direction
-            );
-
-            if (comparison) {
-                return direction === "desc"
-                    ? -comparison
-                    : comparison;
-            }
+    const path = key.replace(/\[(\d+)\]/g, ".$1").replace(/^\./, "").split(".");
+    if (path.length === 1) {
+        const field = path[0];
+        return record => record !== null && typeof record === "object" && Object.hasOwn(record, field)
+            ? record[field] : undefined;
+    }
+    return record => {
+        if (record === null || typeof record !== "object") return undefined;
+        for (const field of path) {
+            if (record == null || (typeof record !== "object" && typeof record !== "function") ||
+                !Object.hasOwn(record, field)) return undefined;
+            record = record[field];
         }
+        return record;
+    };
+}
 
+export function sortData(data, sort) {
+    if (data.length < 2) return data.sort();
+
+    const fields = Array.from(sort, ({ key, direction }) => ({
+        read: sortValueReader(key),
+        direction: direction === "desc" ? "desc" : "asc",
+        arrayKeys: new WeakMap()
+    }));
+
+    return data.sort((a, b) => {
+        for (const { read, direction, arrayKeys } of fields) {
+            const comparison = compareMongoValues(read(a), read(b), direction, arrayKeys);
+            if (comparison) return direction === "desc" ? -comparison : comparison;
+        }
         return 0;
     });
 }

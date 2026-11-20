@@ -7,14 +7,24 @@ const updateOperators = new Set([
     "$set", "$rename", "$inc", "$push", "$each", "$splice", "$unset",
     "$delete", "$slice", "$pop", "$shift", "$addToSet", "$pull"
 ]);
-const isArrayIndex = key => /^(0|[1-9]\d*)$/.test(key) && Number(key) < 2 ** 32 - 1;
+const isArrayIndex = key => key[0] >= "0" && key[0] <= "9" &&
+    /^(0|[1-9]\d*)$/.test(key) && Number(key) < 2 ** 32 - 1;
 const noCreate = new Set(["$rename", "$unset", "$delete", "$slice", "$pop", "$shift", "$pull"]);
 
-function assertUpdatePath(path) {
-    const keys = String(path).replace(/\[(\d+)\]/g, ".$1").split(".");
-    if (keys.some(key => !key || ["__proto__", "prototype", "constructor"].includes(key)))
+function assertUpdateKey(key) {
+    if (!key || key === "__proto__" || key === "prototype" || key === "constructor")
         throw new TypeError("Invalid update path");
+}
+
+function assertUpdatePath(path) {
+    const keys = (path.includes("[") ? path.replace(/\[(\d+)\]/g, ".$1") : path).split(".");
+    for (const key of keys) assertUpdateKey(key);
     return keys;
+}
+
+function deleteValue(object, key) {
+    if (typeof key === "number" && Array.isArray(object)) object.splice(key, 1);
+    else delete object[key];
 }
 
 function arrayAt(object, key) {
@@ -23,8 +33,7 @@ function arrayAt(object, key) {
     return object[key];
 }
 
-function renameTo(object, path, value) {
-    const keys = assertUpdatePath(path);
+function renameTo(object, keys, value) {
     let parent = object;
     for (let i = 0; i < keys.length - 1; i++) {
         if (parent[keys[i]] === undefined) parent[keys[i]] = isArrayIndex(keys[i + 1]) ? [] : {};
@@ -35,176 +44,154 @@ function renameTo(object, path, value) {
     parent[keys.at(-1)] = value;
 }
 
-function dotNotationToObjectUpdate(data, object = {}) {
-	try {
-        // Validate all operator paths before applying any of these operations.
-        for (const [key, value] of Object.entries(data)) {
-            const at = key.indexOf(".");
-            const operator = key.startsWith("$") ? key.slice(0, at) : undefined;
-            if (operator && (!updateOperators.has(operator) || at < 0))
-                throw new TypeError("Unsupported update operator");
-            const path = operator ? key.slice(at + 1) : key;
-            assertUpdatePath(path);
-            if (operator === "$rename") {
-                if (typeof value !== "string") throw new TypeError("Rename destination must be a path string");
-                assertUpdatePath(value);
-            }
-            if (operator === "$addToSet" && value && typeof value === "object" && Object.hasOwn(value, "$each") &&
-                (!Array.isArray(value.$each) || Object.keys(value).some(key => key !== "$each")))
-                throw new TypeError("Add to set each requires an array and no other modifiers");
-            if (operator === "$inc" && (typeof value !== "number" || !Number.isFinite(value)))
-                throw new TypeError("Increment requires a finite number");
-        }
-		operation: for (const key of Object.keys(data)) {
-			let newObject = object;
-			let keys = key
-				.replace(/\[(\d+)\]/g, ".$1")
-				.split(".")
-				.map((k) => (isArrayIndex(k) ? Number(k) : k));
-			let value = data[key];
-			let operator;
-			if (typeof keys[0] === "string" && keys[0].startsWith("$")) operator = keys.shift();
+function prepareUpdateOperations(data) {
+    const operations = [];
+    for (const key of Object.keys(data)) {
+        const value = data[key];
+        const at = key.indexOf(".");
+        const operator = key.startsWith("$") ? key.slice(0, at) : undefined;
+        if (operator && (!updateOperators.has(operator) || at < 0))
+            throw new TypeError("Unsupported update operator");
 
-			let length = keys.length - 1;
-			const deleteUndefined = value === undefined && (!operator || operator === "$set");
-			for (let i = 0; i < keys.length; i++) {
-                if (i < length && (noCreate.has(operator) || deleteUndefined) &&
-                    (newObject[keys[i]] == null || typeof newObject[keys[i]] !== "object")) continue operation;
-				if (length == i) {
-					if (operator) {
-                        if (operator === "$set") {
-                            if (value === undefined) {
-                                if (typeof keys[i] === "number") newObject.splice(keys[i], 1);
-                                else delete newObject[keys[i]];
-                            } else newObject[keys[i]] = value;
-                        } else if (operator === "$rename") {
-                            if (!Object.hasOwn(newObject, keys[i])) continue;
-                            const source = keys.join(".");
-                            const destination = assertUpdatePath(value).join(".");
-                            if (source === destination) continue;
-                            if (source.startsWith(destination + ".") || destination.startsWith(source + "."))
-                                throw new TypeError("Rename paths cannot overlap");
-                            renameTo(object, value, newObject[keys[i]]);
-                            delete newObject[keys[i]];
-                        } else if (
-							operator === "$delete" ||
-							operator === "$unset" ||
-							operator === "$slice"
-						) {
-							if (typeof keys[i] === "number") {
-								newObject.splice(keys[i], 1);
-							} else {
-								delete newObject[keys[i]];
-							}
-						} else if (operator === "$shift") {
-							if (newObject[keys[i]] !== undefined) arrayAt(newObject, keys[i]).shift();
-						} else if (operator === "$pop") {
-							if (newObject[keys[i]] !== undefined) arrayAt(newObject, keys[i]).pop();
-						} else if (operator === "$addToSet") {
-							arrayAt(newObject, keys[i]);
-                            const candidates = value && typeof value === "object" && Object.hasOwn(value, "$each")
-                                ? value.$each : [value];
-                            for (const candidate of candidates) {
-								let exists;
-								if (Array.isArray(candidate)) {
-									exists = newObject[keys[i]].some(
-										(item) => Array.isArray(item) && isEqualArray(item, candidate)
-									);
-								} else if (
-									typeof candidate === "object" &&
-									candidate !== null
-								) {
-									exists = newObject[keys[i]].some(
-										(item) =>
-											typeof item === "object" && isEqualObject(item, candidate)
-									);
-								} else {
-									exists = newObject[keys[i]].includes(candidate);
-								}
-								if (!exists) newObject[keys[i]].push(candidate);
-                            }
-						} else if (operator === "$pull") {
-							if (newObject[keys[i]] === undefined) continue;
-                            arrayAt(newObject, keys[i]);
-							if (Array.isArray(value)) {
-								newObject[keys[i]] = newObject[keys[i]].filter(
-									(item) => !Array.isArray(item) || !isEqualArray(item, value)
-								);
-							} else if (
-								typeof value === "object" &&
-								value !== null
-							) {
-								newObject[keys[i]] = newObject[keys[i]].filter(
-									(item) =>
-										typeof item !== "object" || !isEqualObject(item, value)
-								);
-							} else {
-								newObject[keys[i]] = newObject[keys[i]].filter(
-									(item) => item !== value
-								);
-							}
-						} else if (operator === "$push" || operator === "$splice") {
-							if (
-								typeof keys[i] === "number" &&
-								newObject.length >= keys[i]
-							)
-								newObject.splice(keys[i], 0, value);
-                            else arrayAt(newObject, keys[i]).push(value);
-						} else if (operator === "$each") {
-							if (!Array.isArray(value)) value = [value];
-							if (typeof keys[i] === "number")
-								newObject.splice(keys[i], 0, ...value);
-							else arrayAt(newObject, keys[i]).push(...value);
-                        } else if (operator === "$inc") {
-                            const current = newObject[keys[i]];
-                            if (current !== undefined && (typeof current !== "number" || !Number.isFinite(current)))
-                                throw new TypeError("Cannot increment a non-number");
-                            const next = (current ?? 0) + value;
-                            if (!Number.isFinite(next)) throw new TypeError("Increment overflow");
-                            newObject[keys[i]] = next;
-						}
-                    } else if (value === undefined) {
-						if (typeof keys[i] === "number") newObject.splice(keys[i], 1);
-						else delete newObject[keys[i]];
-					} else if (typeof keys[i] === "number") {
-						newObject.splice(keys[i], 0, value);
-					} else {
-						newObject[keys[i]] = value;
-					}
-				} else if (
-					typeof keys[i + 1] === "number" &&
-					!Array.isArray(newObject[keys[i]])
-				) {
-					newObject[keys[i]] = [];
-				} else {
-					newObject[keys[i]] = newObject[keys[i]] || {};
-				}
-				newObject = newObject[keys[i]];
-			}
-		}
-		return object;
-	} catch (error) {
-		return false;
-	}
+        const keys = assertUpdatePath(operator ? key.slice(at + 1) : key);
+        for (let i = 0; i < keys.length; i++) {
+            if (isArrayIndex(keys[i])) keys[i] = Number(keys[i]);
+        }
+
+        let destination;
+        if (operator === "$rename") {
+            if (typeof value !== "string") throw new TypeError("Rename destination must be a path string");
+            destination = assertUpdatePath(value);
+        }
+        if (operator === "$addToSet" && value && typeof value === "object" && Object.hasOwn(value, "$each") &&
+            (!Array.isArray(value.$each) || Object.keys(value).some(key => key !== "$each")))
+            throw new TypeError("Add to set each requires an array and no other modifiers");
+        if (operator === "$inc" && (typeof value !== "number" || !Number.isFinite(value)))
+            throw new TypeError("Increment requires a finite number");
+
+        operations.push({ operator, keys, value, destination });
+    }
+    return operations;
+}
+
+function applyUpdateOperations(data, object = {}) {
+    operation: for (const { operator, keys, value, destination } of prepareUpdateOperations(data)) {
+        let parent = object;
+        const last = keys.length - 1;
+        const skipMissing = noCreate.has(operator) || value === undefined && (!operator || operator === "$set");
+        for (let i = 0; i < last; i++) {
+            const key = keys[i];
+            const child = parent[key];
+            if (skipMissing) {
+                if (child == null || typeof child !== "object") continue operation;
+                parent = child;
+            } else if (typeof keys[i + 1] === "number" && !Array.isArray(child)) {
+                parent = parent[key] = [];
+            } else {
+                parent = parent[key] = child || {};
+            }
+        }
+
+        const key = keys[last];
+        switch (operator) {
+            case "$set":
+                if (value === undefined) deleteValue(parent, key);
+                else parent[key] = value;
+                break;
+            case "$rename": {
+                if (!Object.hasOwn(parent, key)) break;
+                const source = keys.join(".");
+                const target = destination.join(".");
+                if (source === target) break;
+                if (source.startsWith(target + ".") || target.startsWith(source + "."))
+                    throw new TypeError("Rename paths cannot overlap");
+                renameTo(object, destination, parent[key]);
+                delete parent[key];
+                break;
+            }
+            case "$delete": case "$unset": case "$slice":
+                deleteValue(parent, key);
+                break;
+            case "$shift":
+                if (parent[key] !== undefined) arrayAt(parent, key).shift();
+                break;
+            case "$pop":
+                if (parent[key] !== undefined) arrayAt(parent, key).pop();
+                break;
+            case "$addToSet": {
+                const array = arrayAt(parent, key);
+                const candidates = value && typeof value === "object" && Object.hasOwn(value, "$each")
+                    ? value.$each : [value];
+                for (const candidate of candidates) {
+                    const exists = Array.isArray(candidate)
+                        ? array.some(item => Array.isArray(item) && isEqualArray(item, candidate))
+                        : candidate !== null && typeof candidate === "object"
+                            ? array.some(item => typeof item === "object" && isEqualObject(item, candidate))
+                            : array.includes(candidate);
+                    if (!exists) array.push(candidate);
+                }
+                break;
+            }
+            case "$pull": {
+                if (parent[key] === undefined) break;
+                const array = arrayAt(parent, key);
+                parent[key] = Array.isArray(value)
+                    ? array.filter(item => !Array.isArray(item) || !isEqualArray(item, value))
+                    : value !== null && typeof value === "object"
+                        ? array.filter(item => typeof item !== "object" || !isEqualObject(item, value))
+                        : array.filter(item => item !== value);
+                break;
+            }
+            case "$push": case "$splice":
+                if (typeof key === "number" && parent.length >= key) parent.splice(key, 0, value);
+                else arrayAt(parent, key).push(value);
+                break;
+            case "$each": {
+                const values = Array.isArray(value) ? value : [value];
+                if (typeof key === "number") parent.splice(key, 0, ...values);
+                else arrayAt(parent, key).push(...values);
+                break;
+            }
+            case "$inc": {
+                const current = parent[key];
+                if (current !== undefined && (typeof current !== "number" || !Number.isFinite(current)))
+                    throw new TypeError("Cannot increment a non-number");
+                const next = (current ?? 0) + value;
+                if (!Number.isFinite(next)) throw new TypeError("Increment overflow");
+                parent[key] = next;
+                break;
+            }
+            default:
+                if (value === undefined) deleteValue(parent, key);
+                else if (typeof key === "number") parent.splice(key, 0, value);
+                else parent[key] = value;
+        }
+    }
+    return object;
 }
 
 export function createUpdate(update, data, globalOperators) {
     try {
         const keys = Object.keys(data);
         for (const key of keys) {
-            if (!key.startsWith("$")) assertUpdatePath(key);
-            else if (!updateOperators.has(key.split(".")[0])) return false;
+            if (key.startsWith("$")) {
+                const dot = key.indexOf(".");
+                if (!updateOperators.has(dot < 0 ? key : key.slice(0, dot))) return false;
+            } else if (key.includes(".") || key.includes("[")) assertUpdatePath(key);
+            else assertUpdateKey(key);
         }
-        const operatorKeys = { ...globalOperators };
+        let operatorKeys = globalOperators == null ? undefined : { ...globalOperators };
         for (const key of keys) {
             const value = data[key];
             if (key.startsWith("$")) {
+                operatorKeys ??= {};
                 if (!key.includes(".")) {
                     for (const path of Object.keys(value)) operatorKeys[key + "." + path] = value[path];
                 } else operatorKeys[key] = value;
             } else if (typeof value === "string" && updateOperators.has(value)) {
-                operatorKeys[value + "." + key] = value;
+                (operatorKeys ??= {})[value + "." + key] = value;
             } else if (key.endsWith("]")) {
+                operatorKeys ??= {};
                 const match = key.match(/^(.*(?:\[\d+\].*?)?)\[(.*?)\](?:\[\])?$/);
                 if (!match) return false;
                 if (match[2] === "") operatorKeys["$push." + match[1]] = value;
@@ -213,11 +200,12 @@ export function createUpdate(update, data, globalOperators) {
                     if (Number.isNaN(index)) operatorKeys[match[2] + "." + match[1]] = value;
                     else operatorKeys[key] = value;
                 }
-            } else if (key.includes(".")) operatorKeys[key] = value;
+            } else if (key.includes(".")) (operatorKeys ??= {})[key] = value;
             else if (value === undefined) delete update[key];
             else update[key] = value;
         }
-        return dotNotationToObjectUpdate(operatorKeys, update);
+        if (operatorKeys) return applyUpdateOperations(operatorKeys, update);
+        return update === undefined ? {} : update;
     } catch {
         return false;
     }

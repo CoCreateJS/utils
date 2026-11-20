@@ -17,6 +17,7 @@
  ********************************************************************************/
 
 const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';
+const hexByte = Array.from({ length: 256 }, (_, byte) => byte.toString(16).padStart(2, "0"));
 
 /**
  * Generates an RFC 9562 compliant UUID Version 7 (Universally Unique Identifier).
@@ -54,10 +55,12 @@ export function uuid() {
     bytes[6] = (bytes[6] & 0x0f) | 0x70;
     bytes[8] = (bytes[8] & 0x3f) | 0x80;
 
-    const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
-    const fullUuid = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-
-    return fullUuid;
+    return hexByte[bytes[0]] + hexByte[bytes[1]] + hexByte[bytes[2]] + hexByte[bytes[3]] + "-" +
+        hexByte[bytes[4]] + hexByte[bytes[5]] + "-" +
+        hexByte[bytes[6]] + hexByte[bytes[7]] + "-" +
+        hexByte[bytes[8]] + hexByte[bytes[9]] + "-" +
+        hexByte[bytes[10]] + hexByte[bytes[11]] + hexByte[bytes[12]] +
+        hexByte[bytes[13]] + hexByte[bytes[14]] + hexByte[bytes[15]];
 }
 
 /**

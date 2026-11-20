@@ -1,35 +1,31 @@
+function flatten(value, path, output) {
+    if (value === null || typeof value !== "object") {
+        if (path) output[path] = value;
+        return;
+    }
+
+    if (Array.isArray(value)) {
+        const length = value.length;
+        for (let i = 0; i < length; i++) {
+            // Like Array.prototype.forEach, skip holes but visit explicit undefined.
+            if (i in value) flatten(value[i], path + "[" + i + "]", output);
+        }
+        return;
+    }
+
+    const prefix = path ? path + "." : "";
+    for (const key of Object.keys(value)) {
+        const child = value[key];
+        if (child !== null && typeof child === "object") {
+            flatten(child, prefix + key, output);
+        } else if (prefix || key) {
+            output[prefix + key] = child;
+        }
+    }
+}
+
 export function objectToDotNotation(input) {
-	const results = {};
-
-	function traverse(currentValue, path) {
-		if (typeof currentValue !== "object" || currentValue === null) {
-			if (path !== undefined && path !== null && path !== "") {
-				results[path] = currentValue;
-			}
-			return;
-		}
-
-		if (Array.isArray(currentValue)) {
-			if (currentValue.length > 0) {
-				currentValue.forEach((item, index) => {
-					const nextPath = `${path}[${index}]`;
-					traverse(item, nextPath);
-				});
-			} else if (path) {
-			}
-		} else {
-			const keys = Object.keys(currentValue);
-			if (keys.length > 0) {
-				keys.forEach((key) => {
-					const nextPath = path ? `${path}.${key}` : key;
-					traverse(currentValue[key], nextPath);
-				});
-			} else if (path) {
-			}
-		}
-	}
-
-	traverse(input, "");
-
-	return results;
+    const output = {};
+    flatten(input, "", output);
+    return output;
 }

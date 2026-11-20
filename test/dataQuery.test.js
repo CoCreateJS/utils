@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { queryData, searchData } from '../src/modules/dataQuery.js';
+import { isEqualArray, isEqualObject, queryData, searchData, sortData } from '../src/modules/dataQuery.js';
 
 test('membership operators safely normalize scalar operands', () => {
     assert.equal(queryData({ _id: 'provider-id' }, { _id: { $in: false } }), false);
@@ -13,7 +13,7 @@ test('membership operators safely normalize scalar operands', () => {
 test('null and undefined query values compare without throwing', () => {
     assert.equal(queryData({ value: null }, { value: null }), true);
     assert.equal(queryData({ value: 'set' }, { value: null }), false);
-    assert.equal(queryData({ value: undefined }, { value: undefined }), false);
+    assert.equal(queryData({ value: undefined }, { value: undefined }), true);
 });
 
 for (const value of [123, 0, true, false, 123n, Symbol('example')]) {
@@ -93,25 +93,31 @@ test('matches multiple nested keys and checks dotted-path existence', () => {
     assert.equal(queryData(record, { 'profile.zip': { $exists: false } }), true);
 });
 
-test('range comparisons require compatible primitive types', () => {
-    assert.equal(queryData({ value: '20' }, { value: { $gt: 10 } }), false);
-    assert.equal(queryData({ value: 20 }, { value: { $gt: '10' } }), false);
-    assert.equal(queryData({ value: 'not a number' }, { value: { $gt: 10 } }), false);
-    assert.equal(queryData({ value: '2026-01-02T00:00:00.000Z' }, { value: { $gt: '2026-01-01T00:00:00.000Z' } }), true);
-    assert.equal(queryData({ value: '2026-01-02T00:00:00.000Z' }, { value: { $gt: new Date('2026-01-01T00:00:00.000Z') } }), false);
-    assert.equal(queryData({ value: [1, 2] }, { value: { $gte: 1 } }), false);
+test('range comparisons follow JavaScript operators', () => {
+    const cases = [
+        ['20', 10], [20, '10'], ['not a number', 10],
+        ['2026-01-02T00:00:00.000Z', '2026-01-01T00:00:00.000Z'],
+        ['2026-01-02T00:00:00.000Z', new Date('2026-01-01T00:00:00.000Z')],
+        [[20], 10], [null, 0], [undefined, 0]
+    ];
+    for (const [value, bound] of cases) {
+        assert.equal(queryData({ value }, { value: { $gt: bound } }), value > bound);
+        assert.equal(queryData({ value }, { value: { $gte: bound } }), value >= bound);
+        assert.equal(queryData({ value }, { value: { $lt: bound } }), value < bound);
+        assert.equal(queryData({ value }, { value: { $lte: bound } }), value <= bound);
+    }
 });
 
-test('strict complete-value equality and explicit includes', () => {
+test('structural equality and native membership', () => {
     assert.equal(queryData({ value: 2 }, { value: '2' }), false);
     assert.equal(queryData({ value: [2] }, { value: 2 }), false);
     assert.equal(queryData({ value: { nested: [1, 2] } }, { value: { nested: [1, 2] } }), true);
-    assert.equal(queryData({ value: [2] }, { value: { $in: [2] } }), false);
-    assert.equal(queryData({ value: [2] }, { value: { $in: [[2]] } }), true);
-    assert.equal(queryData({ value: [2] }, { value: { $nin: [[2]] } }), false);
+    assert.equal(queryData({ value: [2] }, { value: { $in: [2] } }), true);
+    assert.equal(queryData({ value: [2] }, { value: { $in: [[2]] } }), false);
+    assert.equal(queryData({ value: [2] }, { value: { $nin: [[2]] } }), true);
     assert.equal(queryData({ value: [2] }, { value: { $includes: 2 } }), true);
     assert.equal(queryData({ value: 'abc' }, { value: { $includes: 'b' } }), true);
-    assert.equal(queryData({ value: '2' }, { value: { $includes: 2 } }), false);
+    assert.equal(queryData({ value: '2' }, { value: { $includes: 2 } }), true);
 });
 
 test('$exists distinguishes undefined from falsy and null values', () => {
@@ -126,4 +132,54 @@ test('nested paths require explicit array indices and traverse falsy parents', (
     assert.equal(queryData({ value: [{ score: 2 }] }, { 'value[0].score': 2 }), true);
     assert.equal(queryData({ value: { score: 2 } }, { 'value.score': 2 }), true);
     assert.equal(queryData({ value: 0 }, { 'value.score': 2 }), false);
+});
+
+test('sortData mutates and returns the input with stable, ordered tie breakers', () => {
+    const records = [
+        { id: 'first', group: 'a', rows: [{ score: 2 }] },
+        { id: 'second', group: 'a', rows: [{ score: 2 }] },
+        { id: 'missing', group: 'a' },
+        { id: 'higher', group: 'a', rows: [{ score: 10 }] },
+        { id: 'last', group: 'b', rows: [{ score: 20 }] }
+    ];
+    const sort = [{ key: 'group' }, { key: 'rows[0].score', direction: 'desc' }];
+    assert.equal(sortData(records, sort), records);
+    assert.deepEqual(records.map(record => record.id), ['higher', 'first', 'second', 'missing', 'last']);
+});
+
+test('sortData preserves heterogeneous type order', () => {
+    const records = ['10', true, 10, null, undefined, 2, '2'].map(value => ({ value }));
+    assert.deepEqual(sortData(records, [{ key: 'value' }]).map(record => record.value),
+        [null, undefined, 2, 10, '10', '2', true]);
+});
+
+test('sortData selects an array extreme for each direction without mutating the field', () => {
+    const shared = Object.freeze([9, 2, 4]);
+    const records = [
+        { id: 'x', values: shared },
+        { id: 'y', values: [5, 7] },
+        { id: 'z', values: shared }
+    ];
+    assert.deepEqual(sortData(records, [{ key: 'values' }]).map(record => record.id), ['x', 'z', 'y']);
+    assert.deepEqual(sortData(records, [{ key: 'values', direction: 'desc' }]).map(record => record.id), ['x', 'z', 'y']);
+    const other = records.find(record => record.id === 'y');
+    other.values.push(12);
+    assert.deepEqual(sortData(records, [{ key: 'values', direction: 'desc' }]).map(record => record.id), ['y', 'x', 'z']);
+    assert.deepEqual(shared, [9, 2, 4]);
+});
+
+test('equality helpers retain structural equality and Object.is scalar rules', () => {
+    assert.equal(isEqualArray([NaN, { values: [1] }], [NaN, { values: [1] }]), true);
+    assert.equal(isEqualArray([0], [-0]), false);
+    assert.equal(isEqualObject({ a: 1, b: [2] }, { b: [2], a: 1 }), true);
+    assert.equal(isEqualObject({ a: undefined }, {}), false);
+    assert.equal(isEqualObject(new Date(1), new Date(1)), true);
+    assert.equal(isEqualObject(new Date(1), new Date(2)), false);
+});
+
+test('search retains clause short circuiting and the existing and rule', () => {
+    const record = { first: 'alpha', second: 'beta' };
+    assert.equal(searchData(record, { operator: 'and', value: ['alpha', 'absent'] }), true);
+    assert.equal(searchData(record, { operator: 'and', value: ['beta', 'alpha'] }), false);
+    assert.equal(searchData(record, [{ operator: 'or', value: 'absent' }, { operator: 'or', value: 'alpha' }]), false);
 });

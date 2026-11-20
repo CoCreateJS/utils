@@ -107,7 +107,12 @@ import { queryData, searchData, sortData } from "@cocreate/utils";
 ### Querying
 
 `queryData(object, query)` evaluates a MongoDB-style query against one object.
-Keys may use dot notation to address nested values.
+It returns a boolean. Keys may use dot notation and explicit array indices
+to address nested values. Range operators use JavaScript relational comparisons.
+`$includes` calls native string or array `includes()`. `$in` checks whether the
+field value, or any member of an array field, is included in the choices.
+`$nin` negates that result. `$eq` and `$ne` retain structural equality for
+arrays and objects.
 
 ```js
 const matches = queryData(
@@ -147,6 +152,7 @@ const sorted = sortData(records, [
 ]);
 ```
 
+The function sorts the input array in place and returns that same array.
 The first field is the primary sort. The second field is compared only when
 the primary values are equal, and each later field breaks ties left by all
 preceding fields. A missing secondary or tertiary value does not exclude the
@@ -161,8 +167,8 @@ Sorting follows MongoDB conventions:
 - Values of different types follow MongoDB's BSON comparison order.
 - Array and object comparisons should follow MongoDB behavior where the
   corresponding JavaScript representation permits it.
-- Equivalent sort keys do not imply a stable order. Include `_id` as the final
-  field when deterministic pagination or rendering is required.
+- Equal keys retain their input order in JavaScript. Include `_id` as the final
+  field for deterministic pagination across storage adapters.
 
 ### Storage-native sorting
 

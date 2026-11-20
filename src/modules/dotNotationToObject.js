@@ -1,92 +1,101 @@
+const numericIndex = /^\d+$/;
+const groupSelector = /^\w$/;
+
+const bracketSegments = new Map();
+const bracketSegmentLimit = 128;
+
+function parseBracketSegment(segment) {
+    const cached = bracketSegments.get(segment);
+    if (cached) return cached;
+
+    const bracket = segment.indexOf("[");
+    if (bracket < 0) return;
+    const selector = segment.slice(bracket + 1, -1);
+    const indexed = selector !== "" && numericIndex.test(selector);
+    if (selector && !indexed && !groupSelector.test(selector)) return;
+    const key = segment.slice(0, bracket);
+    if (key === "__proto__") throw new TypeError("Invalid object path");
+
+    const parsed = { key, selector, indexed };
+    if (bracketSegments.size === bracketSegmentLimit)
+        bracketSegments.delete(bracketSegments.keys().next().value);
+    bracketSegments.set(segment, parsed);
+    return parsed;
+}
+
+function ownValue(object, key) {
+    return Object.hasOwn(object, key) ? object[key] : undefined;
+}
+
+function writeLeaf(object, key, value) {
+    if (key === "__proto__") throw new TypeError("Invalid object path");
+    if (value === undefined) delete object[key];
+    else object[key] = value;
+}
+
 export function dotNotationToObject(data = {}, obj = {}) {
-	try {
-		data ??= {};
-		obj ??= {};
-		let arrayGroup = {};
+    try {
+        obj ??= {};
+        let groups;
 
-		for (const key of Object.keys(data)) {
-			let value = data[key];
-			let newObject = obj;
-			let oldObject = new Object(obj);
-			let keys = key.split(".");
-			let length = keys.length - 1;
+        for (const path of Object.keys(data ?? {})) {
+            const value = data[path];
+            if (!path.includes(".") && !path.endsWith("]")) {
+                writeLeaf(obj, path, value);
+                continue;
+            }
 
-			for (let i = 0; i < keys.length; i++) {
-				if (keys[i].endsWith("]")) {
-					if (keys[i].endsWith("[]")) {
-						let baseKey = keys[i].slice(0, -2);
+            const segments = path.split(".");
+            const last = segments.length - 1;
+            let parent = obj;
+            for (let i = 0; i <= last; i++) {
+                const segment = segments[i];
+                if (!segment.endsWith("]")) {
+                    if (i === last) {
+                        writeLeaf(parent, segment, value);
+                    } else {
+                        if (segment === "__proto__") throw new TypeError("Invalid object path");
+                        parent = ownValue(parent, segment) || (parent[segment] = {});
+                    }
+                    continue;
+                }
 
-						if (!Array.isArray(newObject[baseKey])) {
-							newObject[baseKey] = [];
-						}
+                const parsed = parseBracketSegment(segment);
+                if (!parsed) continue;
+                const { key, selector, indexed } = parsed;
+                let array = ownValue(parent, key);
+                if (!Array.isArray(array)) array = parent[key] = [];
 
-						if (length == i) {
-							if (Array.isArray(value)) {
-								newObject[baseKey].push(...value);
-							} else {
-								newObject[baseKey].push(value);
-							}
-						}
-					} else if (/\[([0-9]+)\]/g.test(keys[i])) {
-						let [k, index] = keys[i].split("[");
-						index = index.slice(0, -1);
+                if (!selector) {
+                    if (i === last) {
+                        if (Array.isArray(value)) array.push(...value);
+                        else array.push(value);
+                    }
+                } else if (indexed) {
+                    if (i === last) {
+                        if (value === undefined) array.splice(selector, 1);
+                        else array[selector] = value;
+                    } else {
+                        parent = ownValue(array, selector) || (array[selector] = {});
+                    }
+                } else {
+                    groups ??= new Map();
+                    const group = segments.slice(0, i + 1).join(".");
+                    let index = groups.get(group);
+                    if (index === undefined) {
+                        index = array.length;
+                        groups.set(group, index);
+                        array[index] = {};
+                    }
 
-						if (!Array.isArray(newObject[k])) {
-							newObject[k] = [];
-						}
-
-						if (length == i) {
-							if (value === undefined) {
-								newObject[k].splice(index, 1);
-							} else {
-								newObject[k][index] = value;
-							}
-						} else {
-							newObject[k][index] = oldObject[k][index] || {};
-							newObject = newObject[k][index];
-							oldObject = oldObject[k][index];
-						}
-					} else if (/\[\w\]/g.test(keys[i])) {
-						let [k, group] = keys[i].split("[");
-						group = group.slice(0, -1);
-
-						if (!Array.isArray(newObject[k])) {
-							newObject[k] = [];
-						}
-
-						let index;
-						if (arrayGroup[keys.slice(0, i + 1).join(".")]) {
-							index = arrayGroup[keys.slice(0, i + 1).join(".")];
-						} else {
-							index = newObject[k].length;
-							arrayGroup[keys.slice(0, i + 1).join(".")] = index;
-							newObject[k][index] = {};
-						}
-
-						if (length == i) {
-							newObject[k][index] = value;
-						} else {
-							newObject = newObject[k][index];
-						}
-					}
-				} else {
-					if (length == i) {
-						if (value === undefined) {
-							delete newObject[keys[i]];
-						} else {
-							newObject[keys[i]] = value;
-						}
-					} else {
-						newObject[keys[i]] = oldObject[keys[i]] || {};
-						newObject = newObject[keys[i]];
-						oldObject = oldObject[keys[i]];
-					}
-				}
-			}
-		}
-		return obj;
-	} catch (error) {
-		console.log("Error converting dot notation to object", error);
-		return false;
-	}
+                    if (i === last) array[index] = value;
+                    else parent = array[index];
+                }
+            }
+        }
+        return obj;
+    } catch (error) {
+        console.log("Error converting dot notation to object", error);
+        return false;
+    }
 }
