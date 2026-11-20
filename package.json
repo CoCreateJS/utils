@@ -50,14 +50,14 @@
     "./iframe": "./src/modules/iframe.js",
     "./browser": "./src/browser.js",
     "./server": "./src/server.js",
-    "./file": "./src/modules/file/index.js"
+    "./file": "./src/modules/file/index.js",
+    "./segments": "./src/modules/segments.js"
   },
   "sideEffects": false,
   "devDependencies": {
     "@cocreate/webpack": "^2.0.1"
   },
   "dependencies": {
-    "entities": "^6.0.1",
-    "@cocreate/kms": "^1.1.0"
+    "entities": "^6.0.1"
   }
 }

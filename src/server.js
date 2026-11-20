@@ -205,13 +205,6 @@ export { HTMLScanner } from "./modules/html-scanner.js";
  * @environment server
  */
 export { getAttributes, getAttributeNames, setAttributeNames } from "./modules/attributes.js";
-/**
- *
- * @public
- * @environment server
- */
-export { kms } from '@cocreate/kms/server';
-
 import { cloudProviders } from "./modules/cloudProviders.js";
 import { getClientInfo } from "./modules/getClientInfo.js";
 import { getRelativePath } from "./modules/getRelativePath.js";
@@ -234,7 +227,6 @@ import { queryData, searchData, sortData, isEqualArray, isEqualObject } from "./
 import { renderValue } from "./modules/renderValue.js";
 import { HTMLScanner } from "./modules/html-scanner.js";
 import { getAttributes, getAttributeNames, setAttributeNames } from "./modules/attributes.js";
-import { kms } from '@cocreate/kms/server';
 
 
 import * as fileUtils from "./modules/file/index.js";
@@ -269,7 +261,6 @@ const utils = {
     createUpdate,
     renderValue,
     HTMLScanner,
-    kms,
     getAttributes,
     getAttributeNames,
     setAttributeNames
