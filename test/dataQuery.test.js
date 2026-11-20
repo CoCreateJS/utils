@@ -13,7 +13,7 @@ test('membership operators safely normalize scalar operands', () => {
 test('null and undefined query values compare without throwing', () => {
     assert.equal(queryData({ value: null }, { value: null }), true);
     assert.equal(queryData({ value: 'set' }, { value: null }), false);
-    assert.equal(queryData({ value: undefined }, { value: undefined }), true);
+    assert.equal(queryData({ value: undefined }, { value: undefined }), false);
 });
 
 for (const value of [123, 0, true, false, 123n, Symbol('example')]) {
@@ -93,10 +93,37 @@ test('matches multiple nested keys and checks dotted-path existence', () => {
     assert.equal(queryData(record, { 'profile.zip': { $exists: false } }), true);
 });
 
-test('range comparisons use native JavaScript operators without normalizing values', () => {
-    assert.equal(queryData({ value: '20' }, { value: { $gt: 10 } }), true);
-    assert.equal(queryData({ value: 20 }, { value: { $gt: '10' } }), true);
+test('range comparisons require compatible primitive types', () => {
+    assert.equal(queryData({ value: '20' }, { value: { $gt: 10 } }), false);
+    assert.equal(queryData({ value: 20 }, { value: { $gt: '10' } }), false);
     assert.equal(queryData({ value: 'not a number' }, { value: { $gt: 10 } }), false);
     assert.equal(queryData({ value: '2026-01-02T00:00:00.000Z' }, { value: { $gt: '2026-01-01T00:00:00.000Z' } }), true);
     assert.equal(queryData({ value: '2026-01-02T00:00:00.000Z' }, { value: { $gt: new Date('2026-01-01T00:00:00.000Z') } }), false);
+    assert.equal(queryData({ value: [1, 2] }, { value: { $gte: 1 } }), false);
+});
+
+test('strict complete-value equality and explicit includes', () => {
+    assert.equal(queryData({ value: 2 }, { value: '2' }), false);
+    assert.equal(queryData({ value: [2] }, { value: 2 }), false);
+    assert.equal(queryData({ value: { nested: [1, 2] } }, { value: { nested: [1, 2] } }), true);
+    assert.equal(queryData({ value: [2] }, { value: { $in: [2] } }), false);
+    assert.equal(queryData({ value: [2] }, { value: { $in: [[2]] } }), true);
+    assert.equal(queryData({ value: [2] }, { value: { $nin: [[2]] } }), false);
+    assert.equal(queryData({ value: [2] }, { value: { $includes: 2 } }), true);
+    assert.equal(queryData({ value: 'abc' }, { value: { $includes: 'b' } }), true);
+    assert.equal(queryData({ value: '2' }, { value: { $includes: 2 } }), false);
+});
+
+test('$exists distinguishes undefined from falsy and null values', () => {
+    for (const value of [null, false, 0, '', [], {}])
+        assert.equal(queryData({ value }, { value: { $exists: true } }), true);
+    assert.equal(queryData({ value: undefined }, { value: { $exists: true } }), false);
+    assert.equal(queryData({}, { value: { $exists: false } }), true);
+});
+
+test('nested paths require explicit array indices and traverse falsy parents', () => {
+    assert.equal(queryData({ value: [{ score: 2 }] }, { 'value.score': 2 }), false);
+    assert.equal(queryData({ value: [{ score: 2 }] }, { 'value[0].score': 2 }), true);
+    assert.equal(queryData({ value: { score: 2 } }, { 'value.score': 2 }), true);
+    assert.equal(queryData({ value: 0 }, { 'value.score': 2 }), false);
 });

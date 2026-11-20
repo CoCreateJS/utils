@@ -66,12 +66,17 @@ function dotNotationToObjectUpdate(data, object = {}) {
 			if (typeof keys[0] === "string" && keys[0].startsWith("$")) operator = keys.shift();
 
 			let length = keys.length - 1;
+			const deleteUndefined = value === undefined && (!operator || operator === "$set");
 			for (let i = 0; i < keys.length; i++) {
-                if (i < length && newObject[keys[i]] == null && noCreate.has(operator)) continue operation;
+                if (i < length && (noCreate.has(operator) || deleteUndefined) &&
+                    (newObject[keys[i]] == null || typeof newObject[keys[i]] !== "object")) continue operation;
 				if (length == i) {
 					if (operator) {
                         if (operator === "$set") {
-                            newObject[keys[i]] = value;
+                            if (value === undefined) {
+                                if (typeof keys[i] === "number") newObject.splice(keys[i], 1);
+                                else delete newObject[keys[i]];
+                            } else newObject[keys[i]] = value;
                         } else if (operator === "$rename") {
                             if (!Object.hasOwn(newObject, keys[i])) continue;
                             const source = keys.join(".");
@@ -158,7 +163,7 @@ function dotNotationToObjectUpdate(data, object = {}) {
                             if (!Number.isFinite(next)) throw new TypeError("Increment overflow");
                             newObject[keys[i]] = next;
 						}
-					} else if (value === undefined) {
+                    } else if (value === undefined) {
 						if (typeof keys[i] === "number") newObject.splice(keys[i], 1);
 						else delete newObject[keys[i]];
 					} else if (typeof keys[i] === "number") {

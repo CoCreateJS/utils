@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createUpdate } from '../src/modules/createUpdate.js';
+import { createUpdate, getValueFromObject } from '../src/modules/createUpdate.js';
 
 const cases = [
     ['plain assignment', { x: 1 }, { x: 2 }, { x: 2 }],
@@ -10,6 +10,11 @@ const cases = [
     ['$set literal operator string', { x: 1 }, { $set: { x: '$pop' } }, { x: '$pop' }],
     ['$set array position replaces', { v: ['a', 'b'] }, { $set: { 'v[1]': 'c' } }, { v: ['a', 'c'] }],
     ['$set falsy values', {}, { $set: { x: 0, y: false, z: null } }, { x: 0, y: false, z: null }],
+    ['nested assignment undefined deletes existing leaf', { nested: { value: 1 } }, { 'nested.value': undefined }, { nested: {} }],
+    ['$set undefined deletes existing leaf', { nested: { value: 1 } }, { $set: { 'nested.value': undefined } }, { nested: {} }],
+    ['undefined deletion does not create parents', {}, { 'nested.value': undefined }, {}],
+    ['$set undefined deletion does not create parents', {}, { $set: { 'nested.value': undefined } }, {}],
+    ['undefined array index deletion splices', { values: ['a', 'b', 'c'] }, { $set: { 'values[1]': undefined } }, { values: ['a', 'c'] }],
     ['$inc existing', { x: 2 }, { $inc: { x: 3 } }, { x: 5 }],
     ['$inc zero', { x: 0 }, { $inc: { x: -2 } }, { x: -2 }],
     ['$inc creates missing', {}, { $inc: { x: 3 } }, { x: 3 }],
@@ -63,6 +68,15 @@ for (const [name, original, update, expected, globals] of cases)
         assert.equal(createUpdate(target, structuredClone(update), structuredClone(globals)), target);
         assert.deepEqual(target, expected);
     });
+
+test('path lookup follows explicit indices through falsy values', () => {
+    const data = { zero: { enabled: false, count: 0, empty: '' }, rows: [{ value: 0 }] };
+    assert.equal(getValueFromObject(data, 'zero.enabled'), false);
+    assert.equal(getValueFromObject(data, 'zero.count'), 0);
+    assert.equal(getValueFromObject(data, 'zero.empty'), '');
+    assert.equal(getValueFromObject(data, 'rows[0].value'), 0);
+    assert.equal(getValueFromObject({ rows: [{ value: 1 }] }, 'rows.value'), undefined);
+});
 
 for (const [name, target, update] of [
     ['increment rejects strings', { x: 'old' }, { $inc: { x: 1 } }],

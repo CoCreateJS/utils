@@ -1,6 +1,6 @@
 export function getValueFromObject(object = {}, path = "", throwError = false) {
 	try {
-		if ((!Array.isArray(object) && !Object.keys(object).length) || !path) {
+		if (object == null || (!Array.isArray(object) && typeof object !== "object") || !path) {
 			if (throwError) throw new Error("Invalid input to getValueFromObject");
 			return;
 		}
@@ -11,11 +11,12 @@ export function getValueFromObject(object = {}, path = "", throwError = false) {
 			subpath = path.split(".");
 
 		for (let i = 0; i < subpath.length; i++) {
-			if (throwError && !(subpath[i] in data))
+			if (data == null || (typeof data !== "object" && typeof data !== "function") || !Object.hasOwn(data, subpath[i])) {
+				if (!throwError) return;
 				throw new Error("Key not found in object: " + subpath[i]);
+			}
 
 			data = data[subpath[i]];
-			if (!data) break;
 		}
 
 		return data;
