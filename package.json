@@ -44,7 +44,7 @@
       "node": "./src/server.js",
       "default": "./src/browser.js"
     },
-    "./distribution": "./src/modules/distribution.js",
+    "./awareness": "./src/modules/awareness.js",
     "./selection": "./src/modules/selection.js",
     "./queryElements": "./src/modules/queryElements.js",
     "./iframe": "./src/modules/iframe.js",
