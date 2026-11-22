@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { SegmentReceiver, createFrames } from '../src/modules/segments.js';
+import { SegmentReceiver, createFrames, createSegmentId } from '../src/modules/segments.js';
 
 test('segments pass small byte payloads through unchanged', () => {
     const bytes = new Uint8Array([0, 1, 127, 128, 255]);
@@ -43,4 +43,15 @@ test('segment receiver rejects missing, duplicated and out-of-order frames', () 
     assert.throws(() => receiver.push(first), /out of order/);
     receiver.clear();
     assert.equal(receiver.bufferedBytes, 0);
+});
+
+test('identified small payloads are framed and retain their identity', () => {
+    const id = createSegmentId();
+    const payload = new Uint8Array([7, 8]);
+    const [frame] = createFrames(payload, 16, { id });
+    const receiver = new SegmentReceiver();
+    const result = receiver.pushSegment(frame);
+    assert.equal(result.id, id);
+    assert.deepEqual(result.payload, payload);
+    receiver.release(result.payload);
 });

@@ -32,7 +32,13 @@ function frame(payload, type, id = 0, offset = 0, total = payload.byteLength) {
 }
 
 /** Split a byte payload into transportable frames. Small payloads pass through unchanged. */
-export function* createFrames(payload, frameSize = DEFAULT_FRAME_SIZE) {
+export function createSegmentId() {
+    const id = nextTransferId++ >>> 0;
+    if (nextTransferId > 0xffffffff) nextTransferId = 1;
+    return id || createSegmentId();
+}
+
+export function* createFrames(payload, frameSize = DEFAULT_FRAME_SIZE, options = {}) {
     payload = toUint8Array(payload);
     if (!Number.isSafeInteger(frameSize) || frameSize <= 0) {
         throw new RangeError("frameSize must be a positive safe integer");
@@ -40,13 +46,20 @@ export function* createFrames(payload, frameSize = DEFAULT_FRAME_SIZE) {
     if (payload.byteLength > MAX_TRANSFER_SIZE) {
         throw new RangeError(`Segment transfer exceeds ${MAX_TRANSFER_SIZE} bytes`);
     }
-    if (payload.byteLength <= frameSize) {
+    const requestedId = options?.id;
+    if (requestedId !== undefined && (!Number.isInteger(requestedId) || requestedId <= 0 || requestedId > 0xffffffff)) {
+        throw new RangeError("Segment id must be a nonzero uint32");
+    }
+    if (payload.byteLength <= frameSize && requestedId === undefined) {
         yield payload;
         return;
     }
 
-    const id = nextTransferId++ >>> 0;
-    if (nextTransferId > 0xffffffff) nextTransferId = 1;
+    const id = requestedId ?? createSegmentId();
+    if (payload.byteLength <= frameSize) {
+        yield frame(payload, SINGLE, id);
+        return;
+    }
     for (let offset = 0; offset < payload.byteLength; offset += frameSize) {
         yield frame(
             payload.subarray(offset, Math.min(offset + frameSize, payload.byteLength)),
@@ -132,6 +145,15 @@ export class SegmentReceiver {
         this.transfers.delete(id);
         this.leases.set(result, transfer.total);
         return result;
+    }
+
+    /** Push a frame and retain its transfer id with the reconstructed payload. */
+    pushSegment(value) {
+        const bytes = toUint8Array(value);
+        const framed = bytes.byteLength >= HEADER_SIZE && MAGIC.every((byte, i) => bytes[i] === byte);
+        const id = framed ? new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(5) : null;
+        const payload = this.push(bytes);
+        return payload ? { id, payload } : null;
     }
 
     release(payload) {
