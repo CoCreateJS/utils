@@ -27,7 +27,7 @@ async function renderValue(
     resolveValue,
     options = {}
 ) {
-    const { astAsync } = options;
+    const { evaluateAsync } = options;
     data = data && typeof data === "object" ? data : {};
     let output = placeholder;
     const contextElement = node && node.nodeType !== 1
@@ -62,7 +62,7 @@ async function renderValue(
                         const quoteType = quoteMatch[1];
                         const content = quoteMatch[2];
                         if (content.trim().startsWith("$")) {
-                            let resolved = await astAsync({
+                            let resolved = await evaluateAsync({
                                 executeAST: content,
                                 node: contextElement,
                                 sandbox: sandboxContext
@@ -81,7 +81,7 @@ async function renderValue(
                         );
                     }
 
-                    preProcessed = await astAsync({
+                    preProcessed = await evaluateAsync({
                         executeAST: preProcessed,
                         node: contextElement,
                         sandbox: sandboxContext

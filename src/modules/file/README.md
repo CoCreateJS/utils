@@ -69,7 +69,7 @@ The same functions are shared AST globals in browser and server execution:
 { "$encodeContent": { "value": "$actions.bytes", "format": "base64" } }
 ```
 
-Use `astAsync` for File/Blob inputs, which require asynchronous reads. The
+Use `evaluateAsync` for File/Blob inputs, which require asynchronous reads. The
 operators delegate directly to these helpers.
 
 Both functions accept an options object containing `value`, optional `contentType`,

@@ -62,14 +62,14 @@ const { getValueFromObject } = require("@cocreate/utils/getValueFromObject");
 ## Rendering values in strings
 
 `renderValue` resolves CoCreate double-curly values and AST expressions. Pass
-the evaluator from `@cocreate/ast` in the final options object. It can
+the evaluator from `@cocreate/evaluate` in the final options object. It can
 run without a DOM node when the expression reads from the supplied data. It
 resolves nested values from the innermost placeholder outward, while callers
 with their own nested scopes can pass a custom `resolveValue` callback.
 
 ```js
 import { renderValue } from "@cocreate/utils";
-import { astAsync } from "@cocreate/ast/client";
+import { evaluateAsync } from "@cocreate/evaluate/client";
 
 const html = await renderValue(
 	undefined,
@@ -83,7 +83,7 @@ const html = await renderValue(
 	undefined,
 	undefined,
 	undefined,
-	{ escapeOutput: true, astAsync }
+	{ escapeOutput: true, evaluateAsync }
 );
 ```
 
@@ -301,7 +301,7 @@ on the same object or its prototype chain cause a `TypeError`, even if one is
 an exact match. Overrides using the same spelling are allowed. The caller
 chooses whether to read, assign, or invoke the resolved member.
 
-AST evaluation is provided by [`@cocreate/ast`](../ast/README.md).
+AST evaluation is provided by [`@cocreate/evaluate`](../evaluate/README.md).
 
 ## Query and update operator contracts
 
