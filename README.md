@@ -69,7 +69,7 @@ with their own nested scopes can pass a custom `resolveValue` callback.
 
 ```js
 import { renderValue } from "@cocreate/utils";
-import { evaluateAsync } from "@cocreate/evaluate/client";
+import { evaluateAsync } from "@cocreate/evaluate";
 
 const html = await renderValue(
 	undefined,
