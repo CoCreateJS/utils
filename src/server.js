@@ -118,7 +118,7 @@ export { resolveProperty } from "./modules/object/resolveProperty.js";
  * @public
  * @environment server
  */
-export { createUpdate, createUpdateChanges, mergeUpdateChanges } from "./modules/object/update.js";
+export { applyUpdate, createUpdate, createUpdateChanges, mergeUpdateChanges } from "./modules/object/update.js";
 /**
  *
  * @public
@@ -220,7 +220,7 @@ import { dotNotationToObject } from "./modules/object/dotNotationToObject.js";
 import { objectToDotNotation } from "./modules/object/objectToDotNotation.js";
 import { getValueFromObject } from "./modules/object/getValueFromObject.js";
 import { resolveProperty } from "./modules/object/resolveProperty.js";
-import { createUpdate } from "./modules/object/update.js";
+import { applyUpdate, createUpdate, createUpdateChanges, mergeUpdateChanges } from "./modules/object/update.js";
 import { parseTextToHtml } from "./modules/html/parseTextToHtml.js";
 import { escapeHtml } from "./modules/html/escapeHtml.js";
 import { queryData, searchData, sortData, isEqualArray, isEqualObject } from "./modules/object/query.js";
@@ -258,7 +258,10 @@ const utils = {
     sortData,
     isEqualArray, 
     isEqualObject,
+    applyUpdate,
     createUpdate,
+    createUpdateChanges,
+    mergeUpdateChanges,
     renderValue,
     HTMLScanner,
     getAttributes,

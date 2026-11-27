@@ -274,3 +274,116 @@ export function mergeUpdateChanges(previous, next) {
         if (result[operator] && !Object.keys(result[operator]).length) delete result[operator];
     return result;
 }
+
+const plainObject = value => value !== null && typeof value === "object" &&
+    (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
+const protectedUpdateFields = new Set(["uuid", "_id", "root", "parent", "updated"]);
+
+function parseTimestamp(value) {
+    if (value === undefined || value === null) return undefined;
+    const timestamp = typeof value === "number" ? value : typeof value === "string" ? Date.parse(value) : NaN;
+    if (!Number.isFinite(timestamp)) throw new TypeError("Invalid updated.on");
+    return timestamp;
+}
+
+function updateValue(update, paths) {
+    for (const path of paths) {
+        let value = update;
+        for (const key of path) value = value?.[key];
+        if (value !== undefined) return value;
+    }
+}
+
+function timestampFromUpdate(update) {
+    const values = [["updated", "on"], ["updated.on"], ["$set", "updated", "on"], ["$set", "updated.on"], ["$set.updated", "on"], ["$set.updated.on"]]
+        .map(path => updateValue(update, [path])).filter(value => value !== undefined);
+    if (!values.length) return { value: undefined, timestamp: undefined };
+    const timestamp = parseTimestamp(values[0]);
+    if (values.some(value => parseTimestamp(value) !== timestamp)) throw new TypeError("Conflicting updated.on values");
+    return { value: values[0], timestamp };
+}
+
+function updateBy(update) {
+    return updateValue(update, [["updated", "by"], ["updated.by"], ["$set", "updated", "by"], ["$set", "updated.by"], ["$set.updated", "by"], ["$set.updated.by"]]);
+}
+
+function updatePathParts(path) {
+    if (typeof path !== "string" || !path || /[\[\]]/.test(path)) return undefined;
+    const parts = path.split(".");
+    if (parts.some(key => !key || /^\d+$/.test(key) || key === "__proto__" || key === "prototype" || key === "constructor")) return undefined;
+    return parts;
+}
+
+function pathIsMissing(object, parts) {
+    for (const key of parts) {
+        if (object === null || typeof object !== "object") return false;
+        if (!Object.hasOwn(object, key)) return true;
+        object = object[key];
+    }
+    return false;
+}
+
+function collectMissingAssignments(object, path, value, accepted, prefix = "") {
+    const parts = updatePathParts(path);
+    if (!parts || protectedUpdateFields.has(parts[0]) || value === undefined ||
+        typeof value === "string" && updateOperators.has(value)) return;
+    if (plainObject(value) && Object.keys(value).length) {
+        for (const [key, child] of Object.entries(value))
+            collectMissingAssignments(object, `${path}.${key}`, child, accepted, prefix);
+    } else if (pathIsMissing(object, parts)) {
+        accepted[prefix + path] = value;
+    }
+}
+
+function olderAssignments(object, update) {
+    const accepted = {};
+    for (const [key, value] of Object.entries(update)) {
+        if (key === "$set") {
+            if (!plainObject(value)) throw new TypeError("Invalid $set update");
+            for (const [path, child] of Object.entries(value))
+                collectMissingAssignments(object, path, child, accepted, "$set.");
+        } else if (key.startsWith("$set.")) {
+            collectMissingAssignments(object, key.slice(5), value, accepted, "$set.");
+        } else if (!key.startsWith("$")) {
+            collectMissingAssignments(object, key, value, accepted);
+        }
+    }
+    return accepted;
+}
+
+/** Apply and reconcile a CoCreate update while retaining its accepted mutation. */
+export async function applyUpdate(object, input, { apply = createUpdate } = {}) {
+    if (object === null || typeof object !== "object") throw new TypeError("Update target must be an object");
+    if (!plainObject(input)) throw new TypeError("Update must be an object");
+    if (typeof apply !== "function") throw new TypeError("Update apply handler must be a function");
+
+    const update = { ...input };
+    const incoming = timestampFromUpdate(update);
+    const previous = parseTimestamp(object.updated?.on ?? object["updated.on"]);
+    const stale = previous !== undefined && incoming.timestamp !== undefined && incoming.timestamp <= previous;
+
+    if (!stale) {
+        if (!Object.keys(update).length) return { object, mutation: undefined };
+        const result = await apply(object, update);
+        if (result === false) throw new TypeError("Invalid update");
+        return { object, mutation: update };
+    }
+
+    const candidate = structuredClone(object);
+    const accepted = olderAssignments(candidate, update);
+    if (!Object.keys(accepted).length) return { object, mutation: undefined };
+    if (createUpdate(candidate, accepted) === false) throw new TypeError("Invalid stale update");
+    const changes = createUpdateChanges(object, candidate);
+    if (Object.keys(changes).length) {
+        const result = await apply(object, changes);
+        if (result === false) throw new TypeError("Invalid stale update");
+    }
+    const by = updateBy(update);
+    return {
+        object,
+        mutation: Object.assign(changes, {
+            "updated.on": incoming.value,
+            ...(by !== undefined ? { "updated.by": by } : {})
+        })
+    };
+}

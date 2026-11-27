@@ -1,6 +1,81 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createUpdate, createUpdateChanges, mergeUpdateChanges } from '../src/modules/object/update.js';
+import { applyUpdate, createUpdate, createUpdateChanges, mergeUpdateChanges } from '../src/modules/object/update.js';
+
+test('ordinary updates apply directly to the target and retain the accepted patch', async () => {
+    const target = { value: 1 };
+    const update = { $inc: { value: 2 } };
+    let appliedTo;
+    const result = await applyUpdate(target, update, {
+        apply(object, mutation) {
+            appliedTo = object;
+            return createUpdate(object, mutation);
+        }
+    });
+    assert.equal(appliedTo, target);
+    assert.equal(result.object, target);
+    assert.deepEqual(result.mutation, update);
+    assert.equal(target.value, 3);
+});
+
+test('older updates add only missing nested assignments and retain an accepted sync mutation', async () => {
+    const target = { updated: { on: 200, by: 'local' }, profile: { city: 'Lima' }, count: 4 };
+    const result = await applyUpdate(target, {
+        updated: { on: 100, by: 'remote' },
+        profile: { city: 'Quito', name: 'Ana' },
+        tags: ['one'],
+        $inc: { count: 10 },
+        $unset: { count: true }
+    });
+    assert.deepEqual(target, {
+        updated: { on: 200, by: 'local' },
+        profile: { city: 'Lima', name: 'Ana' },
+        count: 4,
+        tags: ['one']
+    });
+    assert.deepEqual(result.mutation, {
+        $set: { 'profile.name': 'Ana', tags: ['one'] },
+        'updated.on': 100,
+        'updated.by': 'remote'
+    });
+});
+
+test('equal timestamps reconcile without overwriting existing values', async () => {
+    const target = { updated: { on: '2026-01-01T00:00:00Z' }, value: 'local' };
+    const result = await applyUpdate(target, { updated: { on: Date.parse('2026-01-01T00:00:00Z') }, value: 'remote', missing: false });
+    assert.deepEqual(target, { updated: { on: '2026-01-01T00:00:00Z' }, value: 'local', missing: false });
+    assert.deepEqual(result.mutation, { $set: { missing: false }, 'updated.on': Date.parse('2026-01-01T00:00:00Z') });
+});
+
+test('older nested assignments do not replace an existing scalar parent', async () => {
+    const target = { updated: { on: 200 }, profile: 'local' };
+    const result = await applyUpdate(target, { updated: { on: 100 }, profile: { name: 'remote' } });
+    assert.deepEqual(target, { updated: { on: 200 }, profile: 'local' });
+    assert.equal(result.mutation, undefined);
+});
+
+test('stale dotted $set updates reconcile and emit a final-value patch', async () => {
+    const target = { updated: { on: 200 }, nested: { keep: true } };
+    const result = await applyUpdate(target, {
+        '$set.updated.on': 100,
+        $set: { 'nested.added': 2 }
+    });
+    assert.deepEqual(target, { updated: { on: 200 }, nested: { keep: true, added: 2 } });
+    assert.deepEqual(result.mutation, { $set: { 'nested.added': 2 }, 'updated.on': 100 });
+});
+
+test('updates without comparable timestamps use normal update semantics', async () => {
+    const target = { updated: { on: 200 }, value: 1 };
+    const result = await applyUpdate(target, { value: 2 });
+    assert.equal(target.value, 2);
+    assert.deepEqual(result.mutation, { value: 2 });
+});
+
+test('conflicting update timestamps fail before mutation', async () => {
+    const target = { updated: { on: 1 }, value: 1 };
+    await assert.rejects(applyUpdate(target, { updated: { on: 2 }, 'updated.on': 3, value: 4 }), /Conflicting updated.on/);
+    assert.deepEqual(target, { updated: { on: 1 }, value: 1 });
+});
 
 for (const [name, before, mutation] of [
     ['equal fields', { a: 1, nested: { b: 2 }, list: [1, { n: 2 }] }, { a: 1, list: [1, { n: 2 }] }],
