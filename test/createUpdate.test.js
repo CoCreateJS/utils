@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createUpdate, getValueFromObject } from '../src/modules/createUpdate.js';
+import { createUpdate, getValueFromObject } from '../src/modules/object/update.js';
 
 const cases = [
     ['plain assignment', { x: 1 }, { x: 2 }, { x: 2 }],

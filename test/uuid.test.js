@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import defaultUuid, { uid, uuid } from '../src/modules/uuid.js';
+import defaultUuid, { uid, uuid } from '../src/modules/id/uuid.js';
 
 test('uuid exposes the full v7 timestamp, variant, and default export', t => {
     t.mock.method(Date, 'now', () => 0x0194f6c07c00);

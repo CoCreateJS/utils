@@ -1,3 +1,3 @@
-export { parseTextToHtml } from "./parseTextToHtml.js";
-export { escapeHtml } from "./escapeHtml.js";
-export { cssPath } from "./cssPath.js";
+export { parseTextToHtml } from "./html/parseTextToHtml.js";
+export { escapeHtml } from "./html/escapeHtml.js";
+export { cssPath } from "./dom/cssPath.js";

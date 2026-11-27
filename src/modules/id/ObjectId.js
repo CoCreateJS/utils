@@ -16,7 +16,7 @@
  *
  ********************************************************************************/
 
-import { getClockOffset } from "./getClockOffset.js";
+import { getClockOffset } from "../date/getClockOffset.js";
 
 let counter = 0;
 

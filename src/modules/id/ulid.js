@@ -16,7 +16,7 @@
  *
  ********************************************************************************/
 
-import { getClockOffset } from "./getClockOffset.js";
+import { getClockOffset } from "../date/getClockOffset.js";
 
 const ENCODING = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';

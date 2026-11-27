@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { isEqualArray, isEqualObject, queryData, searchData, sortData } from '../src/modules/dataQuery.js';
+import { isEqualArray, isEqualObject, queryData, searchData, sortData } from '../src/modules/object/query.js';
 
 test('membership operators safely normalize scalar operands', () => {
     assert.equal(queryData({ _id: 'provider-id' }, { _id: { $in: false } }), false);

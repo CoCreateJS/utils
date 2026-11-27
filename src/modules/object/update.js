@@ -1,7 +1,7 @@
 import { dotNotationToObject } from "./dotNotationToObject.js";
 import { objectToDotNotation } from "./objectToDotNotation.js";
 import { getValueFromObject } from "./getValueFromObject.js";
-import { isEqualArray, isEqualObject } from "./dataQuery.js";
+import { isEqualArray, isEqualObject } from "./query.js";
 
 const updateOperators = new Set([
     "$set", "$rename", "$inc", "$push", "$each", "$splice", "$unset",

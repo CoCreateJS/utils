@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { resolveProperty } from "../src/modules/resolveProperty.js";
+import { resolveProperty } from "../src/modules/object/resolveProperty.js";
 
 test("resolves own, inherited, non-enumerable, and function properties", () => {
     class Target {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getData } from "../src/modules/getData.js";
+import { getData } from "../src/modules/dom/getData.js";
 
 function makeElement(attributes, value) {
 	return {

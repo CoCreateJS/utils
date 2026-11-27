@@ -28,13 +28,13 @@ export { getClientInfo } from "./modules/getClientInfo.js";
  * @public
  * @environment client
  */
-export { getData } from "./modules/getData.js";
+export { getData } from "./modules/dom/getData.js";
 /**
  *
  * @public
  * @environment client
  */
-export { setData } from "./modules/setData.js";
+export { setData } from "./modules/dom/setData.js";
 export * from "./modules/file/index.js";
 /**
  *
@@ -53,20 +53,20 @@ export { getRelativePath } from "./modules/getRelativePath.js";
  * @public
  * @environment client
  */
-export { getClockOffset } from "./modules/getClockOffset.js";
+export { getClockOffset } from "./modules/date/getClockOffset.js";
 /**
  *
  * @public
  * @environment client
  */
-export { ObjectId } from "./modules/ObjectId.js";
+export { ObjectId } from "./modules/id/ObjectId.js";
 /**
  *
  * @public
  * @environment client
  */
-export { uuid } from "./modules/uuid.js";
-export { uid } from "./modules/uuid.js";
+export { uuid } from "./modules/id/uuid.js";
+export { uid } from "./modules/id/uuid.js";
 /**
  *
  * @public
@@ -77,7 +77,7 @@ export { uid } from "./modules/uuid.js";
  * @public
  * @environment client
  */
-export { ulid, ulidDecode } from "./modules/ulid.js";
+export { ulid, ulidDecode } from "./modules/id/ulid.js";
 /**
  *
  * @public
@@ -89,83 +89,67 @@ export { checkValue } from "./modules/checkValue.js";
  * @public
  * @environment client
  */
-export { isValidDate } from "./modules/isValidDate.js";
+export { isValidDate } from "./modules/date/isValidDate.js";
 /**
  *
  * @public
  * @environment client
  */
-export { objectToSearchParams } from "./modules/objectToSearchParams.js";
+export { objectToSearchParams } from "./modules/url/objectToSearchParams.js";
 /**
  *
  * @public
  * @environment client
  */
-export { searchParamsToObject } from "./modules/searchParamsToObject.js";
+export { searchParamsToObject } from "./modules/url/searchParamsToObject.js";
 /**
  *
  * @public
  * @environment client
  */
-export { dotNotationToObject } from "./modules/dotNotationToObject.js";
+export { dotNotationToObject } from "./modules/object/dotNotationToObject.js";
 /**
  *
  * @public
  * @environment client
  */
-export { objectToDotNotation } from "./modules/objectToDotNotation.js";
+export { objectToDotNotation } from "./modules/object/objectToDotNotation.js";
 /**
  *
  * @public
  * @environment client
  */
-export { getValueFromObject } from "./modules/getValueFromObject.js";
+export { getValueFromObject } from "./modules/object/getValueFromObject.js";
 /**
  *
  * @public
  * @environment client
  */
-export { resolveProperty } from "./modules/resolveProperty.js";
+export { resolveProperty } from "./modules/object/resolveProperty.js";
 /**
  *
  * @public
  * @environment client
  */
-export { createUpdate, createUpdateChanges, mergeUpdateChanges } from "./modules/createUpdate.js";
+export { createUpdate, createUpdateChanges, mergeUpdateChanges } from "./modules/object/update.js";
 /**
  *
  * @public
  * @environment client
  */
-export { parseTextToHtml } from "./modules/parseTextToHtml.js";
+export { parseTextToHtml } from "./modules/html/parseTextToHtml.js";
 /**
  *
  * @public
  * @environment client
  */
-export { escapeHtml } from "./modules/escapeHtml.js";
+export { escapeHtml } from "./modules/html/escapeHtml.js";
 /**
  *
  * @public
  * @environment client
  */
-export { cssPath } from "./modules/cssPath.js";
-/**
- *
- * @public
- * @environment client
- */
-/**
- *
- * @public
- * @environment client
- */
-/**
- *
- * @public
- * @environment client
- */
-export { queryElements, queryElementsAll, checkMediaQueries } from "./modules/queryElements.js";
+export { cssPath } from "./modules/dom/cssPath.js";
 /**
  *
  * @public
@@ -181,6 +165,7 @@ export { queryElements, queryElementsAll, checkMediaQueries } from "./modules/qu
  * @public
  * @environment client
  */
+export { queryElements, queryElementsAll, checkMediaQueries } from "./modules/dom/queryElements.js";
 /**
  *
  * @public
@@ -191,7 +176,6 @@ export { queryElements, queryElementsAll, checkMediaQueries } from "./modules/qu
  * @public
  * @environment client
  */
-export { queryData, searchData, sortData, isEqualArray, isEqualObject } from "./modules/dataQuery.js";
 /**
  *
  * @public
@@ -207,7 +191,23 @@ export { queryData, searchData, sortData, isEqualArray, isEqualObject } from "./
  * @public
  * @environment client
  */
-export { getAttributes, getAttributeNames, setAttributeNames } from "./modules/attributes.js";
+export { queryData, searchData, sortData, isEqualArray, isEqualObject } from "./modules/object/query.js";
+/**
+ *
+ * @public
+ * @environment client
+ */
+/**
+ *
+ * @public
+ * @environment client
+ */
+/**
+ *
+ * @public
+ * @environment client
+ */
+export { getAttributes, getAttributeNames, setAttributeNames } from "./modules/dom/attributes.js";
 /**
  *
  * @public
@@ -239,34 +239,34 @@ export { renderValue } from "./modules/renderValue.js";
  * @public
  * @environment client
  */
-export { hasSelection } from "./modules/selection.js";
+export { hasSelection } from "./modules/dom/selection.js";
 
 import { getClientInfo } from "./modules/getClientInfo.js";
-import { getData } from "./modules/getData.js";
-import { setData } from "./modules/setData.js";
+import { getData } from "./modules/dom/getData.js";
+import { setData } from "./modules/dom/setData.js";
 import { cloudProviders } from "./modules/cloudProviders.js";
 import { getRelativePath } from "./modules/getRelativePath.js";
-import { getClockOffset } from "./modules/getClockOffset.js";
-import { ObjectId } from "./modules/ObjectId.js";
-import { uuid } from "./modules/uuid.js";
-import { ulid, ulidDecode } from "./modules/ulid.js";
+import { getClockOffset } from "./modules/date/getClockOffset.js";
+import { ObjectId } from "./modules/id/ObjectId.js";
+import { uuid } from "./modules/id/uuid.js";
+import { ulid, ulidDecode } from "./modules/id/ulid.js";
 import { checkValue } from "./modules/checkValue.js";
-import { isValidDate } from "./modules/isValidDate.js";
-import { objectToSearchParams } from "./modules/objectToSearchParams.js";
-import { searchParamsToObject } from "./modules/searchParamsToObject.js";
-import { dotNotationToObject } from "./modules/dotNotationToObject.js";
-import { objectToDotNotation } from "./modules/objectToDotNotation.js";
-import { getValueFromObject } from "./modules/getValueFromObject.js";
-import { resolveProperty } from "./modules/resolveProperty.js";
-import { createUpdate } from "./modules/createUpdate.js";
-import { parseTextToHtml } from "./modules/parseTextToHtml.js";
-import { escapeHtml } from "./modules/escapeHtml.js";
-import { cssPath } from "./modules/cssPath.js";
-import { queryElements, queryElementsAll, checkMediaQueries } from "./modules/queryElements.js";
-import { queryData, searchData, sortData, isEqualArray, isEqualObject } from "./modules/dataQuery.js";
-import { getAttributes, getAttributeNames, setAttributeNames } from "./modules/attributes.js";
+import { isValidDate } from "./modules/date/isValidDate.js";
+import { objectToSearchParams } from "./modules/url/objectToSearchParams.js";
+import { searchParamsToObject } from "./modules/url/searchParamsToObject.js";
+import { dotNotationToObject } from "./modules/object/dotNotationToObject.js";
+import { objectToDotNotation } from "./modules/object/objectToDotNotation.js";
+import { getValueFromObject } from "./modules/object/getValueFromObject.js";
+import { resolveProperty } from "./modules/object/resolveProperty.js";
+import { createUpdate } from "./modules/object/update.js";
+import { parseTextToHtml } from "./modules/html/parseTextToHtml.js";
+import { escapeHtml } from "./modules/html/escapeHtml.js";
+import { cssPath } from "./modules/dom/cssPath.js";
+import { queryElements, queryElementsAll, checkMediaQueries } from "./modules/dom/queryElements.js";
+import { queryData, searchData, sortData, isEqualArray, isEqualObject } from "./modules/object/query.js";
+import { getAttributes, getAttributeNames, setAttributeNames } from "./modules/dom/attributes.js";
 import { renderValue } from "./modules/renderValue.js";
-import { hasSelection } from "./modules/selection.js";
+import { hasSelection } from "./modules/dom/selection.js";
 
 import * as fileUtils from "./modules/file/index.js";
 import * as valueHandlers from "./modules/valueHandler.js";

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { compileQuery, queryData } from '../src/modules/dataQuery.js';
+import { compileQuery, queryData } from '../src/modules/object/query.js';
 
 const cases = [
     ['eq number', { v: 2 }, { v: { $eq: 2 } }, true],

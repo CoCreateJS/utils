@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { dotNotationToObject } from '../src/modules/dotNotationToObject.js';
+import { dotNotationToObject } from '../src/modules/object/dotNotationToObject.js';
 
 test('merges deep paths into the supplied object and deletes undefined leaves', () => {
     const data = { a: { b: { c: { stale: true, kept: false } } }, stale: true };

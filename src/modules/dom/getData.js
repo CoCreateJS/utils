@@ -1,4 +1,4 @@
-import { dotNotationToObject } from "./dotNotationToObject.js";
+import { dotNotationToObject } from "../object/dotNotationToObject.js";
 
 export function getDataElements({ form, prefix, operation }) {
 	if (!form) return [];

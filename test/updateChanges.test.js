@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createUpdate, createUpdateChanges, mergeUpdateChanges } from '../src/modules/createUpdate.js';
+import { createUpdate, createUpdateChanges, mergeUpdateChanges } from '../src/modules/object/update.js';
 
 for (const [name, before, mutation] of [
     ['equal fields', { a: 1, nested: { b: 2 }, list: [1, { n: 2 }] }, { a: 1, list: [1, { n: 2 }] }],

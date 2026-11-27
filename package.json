@@ -45,9 +45,9 @@
       "default": "./src/browser.js"
     },
     "./awareness": "./src/modules/awareness.js",
-    "./selection": "./src/modules/selection.js",
-    "./queryElements": "./src/modules/queryElements.js",
-    "./iframe": "./src/modules/iframe.js",
+    "./selection": "./src/modules/dom/selection.js",
+    "./queryElements": "./src/modules/dom/queryElements.js",
+    "./iframe": "./src/modules/dom/iframe.js",
     "./browser": "./src/browser.js",
     "./server": "./src/server.js",
     "./file": "./src/modules/file/index.js",

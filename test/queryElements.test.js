@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { queryElements } from '../src/modules/queryElements.js';
+import { queryElements } from '../src/modules/dom/queryElements.js';
 
 class Element {
     nodeType = 1;

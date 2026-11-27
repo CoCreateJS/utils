@@ -1,4 +1,4 @@
-import { getValueFromObject } from "./getValueFromObject.js";
+import { getValueFromObject } from "./object/getValueFromObject.js";
 
 /**
  * Resolves CoCreate value placeholders in a string.

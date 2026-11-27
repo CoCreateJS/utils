@@ -40,20 +40,20 @@ export { getRelativePath } from "./modules/getRelativePath.js";
  * @public
  * @environment server
  */
-export { getClockOffset } from "./modules/getClockOffset.js";
+export { getClockOffset } from "./modules/date/getClockOffset.js";
 /**
  *
  * @public
  * @environment server
  */
-export { ObjectId } from "./modules/ObjectId.js";
+export { ObjectId } from "./modules/id/ObjectId.js";
 /**
  *
  * @public
  * @environment server
  */
-export { uuid } from "./modules/uuid.js";
-export { uid } from "./modules/uuid.js";
+export { uuid } from "./modules/id/uuid.js";
+export { uid } from "./modules/id/uuid.js";
 /**
  *
  * @public
@@ -64,7 +64,7 @@ export { uid } from "./modules/uuid.js";
  * @public
  * @environment server
  */
-export { ulid, ulidDecode } from "./modules/ulid.js";
+export { ulid, ulidDecode } from "./modules/id/ulid.js";
 /**
  *
  * @public
@@ -76,71 +76,61 @@ export { checkValue } from "./modules/checkValue.js";
  * @public
  * @environment server
  */
-export { isValidDate } from "./modules/isValidDate.js";
+export { isValidDate } from "./modules/date/isValidDate.js";
 /**
  *
  * @public
  * @environment server
  */
-export { objectToSearchParams } from "./modules/objectToSearchParams.js";
+export { objectToSearchParams } from "./modules/url/objectToSearchParams.js";
 /**
  *
  * @public
  * @environment server
  */
-export { searchParamsToObject } from "./modules/searchParamsToObject.js";
+export { searchParamsToObject } from "./modules/url/searchParamsToObject.js";
 /**
  *
  * @public
  * @environment server
  */
-export { dotNotationToObject } from "./modules/dotNotationToObject.js";
+export { dotNotationToObject } from "./modules/object/dotNotationToObject.js";
 /**
  *
  * @public
  * @environment server
  */
-export { objectToDotNotation } from "./modules/objectToDotNotation.js";
+export { objectToDotNotation } from "./modules/object/objectToDotNotation.js";
 /**
  *
  * @public
  * @environment server
  */
-export { getValueFromObject } from "./modules/getValueFromObject.js";
+export { getValueFromObject } from "./modules/object/getValueFromObject.js";
 /**
  *
  * @public
  * @environment server
  */
-export { resolveProperty } from "./modules/resolveProperty.js";
+export { resolveProperty } from "./modules/object/resolveProperty.js";
 /**
  *
  * @public
  * @environment server
  */
-export { createUpdate, createUpdateChanges, mergeUpdateChanges } from "./modules/createUpdate.js";
+export { createUpdate, createUpdateChanges, mergeUpdateChanges } from "./modules/object/update.js";
 /**
  *
  * @public
  * @environment server
  */
-export { parseTextToHtml } from "./modules/parseTextToHtml.js";
+export { parseTextToHtml } from "./modules/html/parseTextToHtml.js";
 /**
  *
  * @public
  * @environment server
  */
-export { escapeHtml } from "./modules/escapeHtml.js";
-/**
- *
- * @public
- * @environment server
- */
-/**
- *
- * @public
- * @environment server
- */
+export { escapeHtml } from "./modules/html/escapeHtml.js";
 /**
  *
  * @public
@@ -156,7 +146,17 @@ export { escapeHtml } from "./modules/escapeHtml.js";
  * @public
  * @environment server
  */
-export { queryData, searchData, sortData, isEqualArray, isEqualObject } from "./modules/dataQuery.js";
+/**
+ *
+ * @public
+ * @environment server
+ */
+/**
+ *
+ * @public
+ * @environment server
+ */
+export { queryData, searchData, sortData, isEqualArray, isEqualObject } from "./modules/object/query.js";
 /**
  *
  * @public
@@ -188,7 +188,7 @@ export { renderValue } from "./modules/renderValue.js";
  * @public
  * @environment server
  */
-export { HTMLScanner } from "./modules/html-scanner.js";
+export { HTMLScanner } from "./modules/html/html-scanner.js";
 /**
  *
  * @public
@@ -204,29 +204,29 @@ export { HTMLScanner } from "./modules/html-scanner.js";
  * @public
  * @environment server
  */
-export { getAttributes, getAttributeNames, setAttributeNames } from "./modules/attributes.js";
+export { getAttributes, getAttributeNames, setAttributeNames } from "./modules/dom/attributes.js";
 import { cloudProviders } from "./modules/cloudProviders.js";
 import { getClientInfo } from "./modules/getClientInfo.js";
 import { getRelativePath } from "./modules/getRelativePath.js";
-import { getClockOffset } from "./modules/getClockOffset.js";
-import { ObjectId } from "./modules/ObjectId.js";
-import { uuid } from "./modules/uuid.js";
-import { ulid, ulidDecode } from "./modules/ulid.js";
+import { getClockOffset } from "./modules/date/getClockOffset.js";
+import { ObjectId } from "./modules/id/ObjectId.js";
+import { uuid } from "./modules/id/uuid.js";
+import { ulid, ulidDecode } from "./modules/id/ulid.js";
 import { checkValue } from "./modules/checkValue.js";
-import { isValidDate } from "./modules/isValidDate.js";
-import { objectToSearchParams } from "./modules/objectToSearchParams.js";
-import { searchParamsToObject } from "./modules/searchParamsToObject.js";
-import { dotNotationToObject } from "./modules/dotNotationToObject.js";
-import { objectToDotNotation } from "./modules/objectToDotNotation.js";
-import { getValueFromObject } from "./modules/getValueFromObject.js";
-import { resolveProperty } from "./modules/resolveProperty.js";
-import { createUpdate } from "./modules/createUpdate.js";
-import { parseTextToHtml } from "./modules/parseTextToHtml.js";
-import { escapeHtml } from "./modules/escapeHtml.js";
-import { queryData, searchData, sortData, isEqualArray, isEqualObject } from "./modules/dataQuery.js";
+import { isValidDate } from "./modules/date/isValidDate.js";
+import { objectToSearchParams } from "./modules/url/objectToSearchParams.js";
+import { searchParamsToObject } from "./modules/url/searchParamsToObject.js";
+import { dotNotationToObject } from "./modules/object/dotNotationToObject.js";
+import { objectToDotNotation } from "./modules/object/objectToDotNotation.js";
+import { getValueFromObject } from "./modules/object/getValueFromObject.js";
+import { resolveProperty } from "./modules/object/resolveProperty.js";
+import { createUpdate } from "./modules/object/update.js";
+import { parseTextToHtml } from "./modules/html/parseTextToHtml.js";
+import { escapeHtml } from "./modules/html/escapeHtml.js";
+import { queryData, searchData, sortData, isEqualArray, isEqualObject } from "./modules/object/query.js";
 import { renderValue } from "./modules/renderValue.js";
-import { HTMLScanner } from "./modules/html-scanner.js";
-import { getAttributes, getAttributeNames, setAttributeNames } from "./modules/attributes.js";
+import { HTMLScanner } from "./modules/html/html-scanner.js";
+import { getAttributes, getAttributeNames, setAttributeNames } from "./modules/dom/attributes.js";
 
 
 import * as fileUtils from "./modules/file/index.js";

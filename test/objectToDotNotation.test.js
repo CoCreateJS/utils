@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { objectToDotNotation } from '../src/modules/objectToDotNotation.js';
+import { objectToDotNotation } from '../src/modules/object/objectToDotNotation.js';
 
 test('flattens nested objects and arrays in traversal order', () => {
     const input = { first: false, records: [{ field: 'a' }, , { field: 'c' }], matrix: [[1], [2]] };

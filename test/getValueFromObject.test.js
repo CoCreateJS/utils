@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { getValueFromObject } from '../src/modules/getValueFromObject.js';
+import { getValueFromObject } from '../src/modules/object/getValueFromObject.js';
 
 test('resolves flat, dotted and indexed own properties', () => {
     const record = { id: 'a', rows: [{ nested: { value: 3 } }] };
